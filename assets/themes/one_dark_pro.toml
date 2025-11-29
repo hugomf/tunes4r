@@ -1,0 +1,51 @@
+# One Dark Pro
+# VS Code's most downloaded theme ever
+# Created by binaryify
+
+name = "One Dark Pro"
+author = "binaryify (3M+ installs)"
+
+[colors]
+# Background colors
+scaffold_background = "#1E2127"
+surface_primary = "#21252B"
+surface_secondary = "#282C34"
+app_bar_background = "#21252B"
+
+# Primary colors (vscode blue)
+primary = "#61AFEF"
+primary_pressed = "#528BFF"
+primary_disabled = "#5C6370"
+
+# Secondary colors (vscode green)
+secondary = "#C678DD"
+secondary_pressed = "#98C379"
+secondary_disabled = "#2C323C"
+
+# Text colors
+text_primary = "#ABB2BF"
+text_secondary = "#9DA5B4"
+text_disabled = "#6C7891"
+
+# Semantic colors
+success = "#98C379"
+error = "#E06C75"
+warning = "#E5C07B"
+info = "#61AFEF"
+
+# UI elements
+card_background = "#21252B"
+card_border = "#282C34"
+icon_primary = "#ABB2BF"
+icon_secondary = "#9DA5B4"
+icon_disabled = "#6C7891"
+
+# Special elements
+seek_bar_active = "#61AFEF"
+seek_bar_inactive = "#282C34"
+spectrum_primary = "#61AFEF"
+spectrum_secondary = "#C678DD"
+
+# Gradients for album art placeholders
+gradient_start = "#61AFEF"
+gradient_end = "#C678DD"

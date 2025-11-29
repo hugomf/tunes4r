@@ -1,0 +1,50 @@
+# Neon Theme
+# Bright, electric, cyberpunk-inspired colors
+
+name = "Neon"
+author = "Cyber Theme"
+
+[colors]
+# Background colors
+scaffold_background = "#0A0A0A"
+surface_primary = "#1A1A1A"
+surface_secondary = "#2A2A2A"
+app_bar_background = "#1A1A1A"
+
+# Primary colors (electric blue and neon pink)
+primary = "#00FFFF"
+primary_pressed = "#00CCCC"
+primary_disabled = "#004444"
+
+# Secondary colors (neon pink/magenta)
+secondary = "#FF00FF"
+secondary_pressed = "#CC00CC"
+secondary_disabled = "#440044"
+
+# Text colors
+text_primary = "#FFFFFF"
+text_secondary = "#CCCCCC"
+text_disabled = "#666666"
+
+# Semantic colors
+success = "#00FF00"
+error = "#FF0000"
+warning = "#FFFF00"
+info = "#0080FF"
+
+# UI elements
+card_background = "#1A1A1A"
+card_border = "#333333"
+icon_primary = "#FFFFFF"
+icon_secondary = "#CCCCCC"
+icon_disabled = "#666666"
+
+# Special elements
+seek_bar_active = "#00FFFF"
+seek_bar_inactive = "#333333"
+spectrum_primary = "#00FFFF"
+spectrum_secondary = "#FF00FF"
+
+# Gradients for album art placeholders
+gradient_start = "#00FFFF"
+gradient_end = "#FF00FF"

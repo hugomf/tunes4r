@@ -1,0 +1,51 @@
+# Nord
+# An arctic, north-bluish color palette
+# Created by Arctic Ice Studio and Sven Greb
+
+name = "Nord"
+author = "Arctic Ice Studio"
+
+[colors]
+# Background colors
+scaffold_background = "#2E3440"
+surface_primary = "#3B4252"
+surface_secondary = "#434C5E"
+app_bar_background = "#3B4252"
+
+# Primary colors (frost blue)
+primary = "#81A1C1"
+primary_pressed = "#5E81AC"
+primary_disabled = "#4C566A"
+
+# Secondary colors (polar green)
+secondary = "#A3BE8C"
+secondary_pressed = "#88C0D0"
+secondary_disabled = "#434C5E"
+
+# Text colors
+text_primary = "#ECEFF4"
+text_secondary = "#D8DEE9"
+text_disabled = "#6C7B94"
+
+# Semantic colors
+success = "#A3BE8C"
+error = "#BF616A"
+warning = "#EBCB8B"
+info = "#81A1C1"
+
+# UI elements
+card_background = "#3B4252"
+card_border = "#434C5E"
+icon_primary = "#ECEFF4"
+icon_secondary = "#D8DEE9"
+icon_disabled = "#6C7B94"
+
+# Special elements
+seek_bar_active = "#81A1C1"
+seek_bar_inactive = "#434C5E"
+spectrum_primary = "#81A1C1"
+spectrum_secondary = "#A3BE8C"
+
+# Gradients for album art placeholders
+gradient_start = "#81A1C1"
+gradient_end = "#A3BE8C"

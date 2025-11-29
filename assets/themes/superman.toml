@@ -1,0 +1,51 @@
+# Superman Theme
+# The Man of Steel theme - red, blue, and gold hero colors
+# Dark blue backgrounds like the night sky, bold red accents, gold highlights
+
+name = "Superman"
+author = "DC Comics (The Man of Steel)"
+
+[colors]
+# Background colors (dark blue like night sky)
+scaffold_background = "#001122"
+surface_primary = "#003366"
+surface_secondary = "#004499"
+app_bar_background = "#003366"
+
+# Primary colors (bold Superman red)
+primary = "#DC143C"
+primary_pressed = "#B22222"
+primary_disabled = "#8B0000"
+
+# Secondary colors (golden yellow accents)
+secondary = "#FFD700"
+secondary_pressed = "#FFC400"
+secondary_disabled = "#DAA520"
+
+# Text colors (clean white)
+text_primary = "#FFFFFF"
+text_secondary = "#F0F0F0"
+text_disabled = "#CCCCCC"
+
+# Semantic colors
+success = "#32CD32"
+error = "#FF4500"
+warning = "#FFD700"
+info = "#00CED1"
+
+# UI elements
+card_background = "#003366"
+card_border = "#004499"
+icon_primary = "#FFFFFF"
+icon_secondary = "#F0F0F0"
+icon_disabled = "#CCCCCC"
+
+# Special elements
+seek_bar_active = "#DC143C"
+seek_bar_inactive = "#004499"
+spectrum_primary = "#DC143C"
+spectrum_secondary = "#FFD700"
+
+# Gradients for album art placeholders
+gradient_start = "#DC143C"
+gradient_end = "#FFD700"

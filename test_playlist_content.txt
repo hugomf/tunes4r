@@ -1,0 +1,13 @@
+Copy and paste this content into a file named "test_playlist.m3u":
+
+#EXTM3U
+#EXTINF:245,Billie Eilish - bad guy
+bad_guy.mp3
+#EXTINF:299,Daft Punk - Get Lucky
+get_lucky.mp3
+#EXTINF:211,Tame Impala - The Less I Know The Better
+the_less_i_know_the_better.mp3
+#EXTINF:287,Travis Scott - SICKO MODE
+sicko_mode.mp3
+#EXTINF:219,Imagine Dragons - Thunder
+thunder.mp3

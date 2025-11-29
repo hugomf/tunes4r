@@ -1,0 +1,51 @@
+# Material Dark
+# Google's Material Design dark theme
+# Created by Mattia Astorino, inspired by Material Design guidelines
+
+name = "Material Dark"
+author = "Mattia Astorino (Material Theme)"
+
+[colors]
+# Background colors
+scaffold_background = "#121212"
+surface_primary = "#1E1E1E"
+surface_secondary = "#272727"
+app_bar_background = "#1E1E1E"
+
+# Primary colors (material blue)
+primary = "#BB86FC"
+primary_pressed = "#03DAC6"
+primary_disabled = "#444444"
+
+# Secondary colors (material teal)
+secondary = "#03DAC6"
+secondary_pressed = "#CF6679"
+secondary_disabled = "#272727"
+
+# Text colors
+text_primary = "#FFFFFF"
+text_secondary = "#B3B3B3"
+text_disabled = "#757575"
+
+# Semantic colors
+success = "#66BB6A"
+error = "#CF6679"
+warning = "#FFB74D"
+info = "#42A5F5"
+
+# UI elements
+card_background = "#1E1E1E"
+card_border = "#272727"
+icon_primary = "#FFFFFF"
+icon_secondary = "#B3B3B3"
+icon_disabled = "#757575"
+
+# Special elements
+seek_bar_active = "#BB86FC"
+seek_bar_inactive = "#272727"
+spectrum_primary = "#BB86FC"
+spectrum_secondary = "#03DAC6"
+
+# Gradients for album art placeholders
+gradient_start = "#BB86FC"
+gradient_end = "#03DAC6"

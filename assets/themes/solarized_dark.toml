@@ -1,0 +1,51 @@
+# Solarized Dark
+# Ethan Schoonover's carefully crafted color scheme
+# Optimized for both terminals and GUIs
+
+name = "Solarized Dark"
+author = "Ethan Schoonover"
+
+[colors]
+# Background colors
+scaffold_background = "#002B36"
+surface_primary = "#073642"
+surface_secondary = "#586E75"
+app_bar_background = "#073642"
+
+# Primary colors (blue accents)
+primary = "#268BD2"
+primary_pressed = "#2AA198"
+primary_disabled = "#586E75"
+
+# Secondary colors (cyan accents)
+secondary = "#2AA198"
+secondary_pressed = "#859900"
+secondary_disabled = "#073642"
+
+# Text colors
+text_primary = "#FDF6E3"
+text_secondary = "#93A1A1"
+text_disabled = "#586E75"
+
+# Semantic colors
+success = "#859900"
+error = "#DC322F"
+warning = "#CB4B16"
+info = "#268BD2"
+
+# UI elements
+card_background = "#073642"
+card_border = "#586E75"
+icon_primary = "#FDF6E3"
+icon_secondary = "#93A1A1"
+icon_disabled = "#586E75"
+
+# Special elements
+seek_bar_active = "#268BD2"
+seek_bar_inactive = "#586E75"
+spectrum_primary = "#268BD2"
+spectrum_secondary = "#2AA198"
+
+# Gradients for album art placeholders
+gradient_start = "#268BD2"
+gradient_end = "#2AA198"

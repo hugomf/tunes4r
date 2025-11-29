@@ -1,0 +1,26 @@
+[package]
+name = "tunes4r"
+version = "1.0.0"
+edition = "2021"
+
+[lib]
+name = "tunes4r"
+crate-type = ["cdylib"]
+
+[dependencies]
+flutter_rust_bridge = "2.3"
+tokio = { version = "1", features = ["full"] }
+rodio = { version = "0.19", features = ["symphonia-mp3", "symphonia-wav", "symphonia-flac"] }
+rustfft = "6.2"
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1.0", features = ["derive"] }
+futures = "0.3"
+anyhow = "1.0"
+thiserror = "1.0"
+log = "0.4"
+walkdir = "2"
+
+[dependencies.id3]
+version = "1.15"
+default-features = false
+features = ["tag"]

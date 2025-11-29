@@ -1,0 +1,51 @@
+# Minimal Light
+# Clean, simple, and elegant light theme
+# Inspired by minimalism and clarity
+
+name = "Minimal Light"
+author = "Minimal Design"
+
+[colors]
+# Background colors
+scaffold_background = "#FFFFFF"
+surface_primary = "#F8F9FA"
+surface_secondary = "#E9ECEF"
+app_bar_background = "#F8F9FA"
+
+# Primary colors (deep blue)
+primary = "#007BFF"
+primary_pressed = "#0056B3"
+primary_disabled = "#ADB5BD"
+
+# Secondary colors (gray tones)
+secondary = "#6C757D"
+secondary_pressed = "#495057"
+secondary_disabled = "#F8F9FA"
+
+# Text colors
+text_primary = "#212529"
+text_secondary = "#6C757D"
+text_disabled = "#ADB5BD"
+
+# Semantic colors
+success = "#28A745"
+error = "#DC3545"
+warning = "#FFC107"
+info = "#17A2B8"
+
+# UI elements
+card_background = "#FFFFFF"
+card_border = "#DEE2E6"
+icon_primary = "#212529"
+icon_secondary = "#6C757D"
+icon_disabled = "#ADB5BD"
+
+# Special elements
+seek_bar_active = "#007BFF"
+seek_bar_inactive = "#DEE2E6"
+spectrum_primary = "#007BFF"
+spectrum_secondary = "#17A2B8"
+
+# Gradients for album art placeholders
+gradient_start = "#007BFF"
+gradient_end = "#17A2B8"

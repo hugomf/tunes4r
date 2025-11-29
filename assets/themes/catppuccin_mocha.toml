@@ -1,0 +1,51 @@
+# Catppuccin Mocha
+# Cozy warm dark theme from the Catppuccin palette
+# Part of the famous pastel theme collection
+
+name = "Catppuccin Mocha"
+author = "Catppuccin Community"
+
+[colors]
+# Background colors
+scaffold_background = "#1E1E2E"
+surface_primary = "#313244"
+surface_secondary = "#45475A"
+app_bar_background = "#313244"
+
+# Primary colors (flamingo pink)
+primary = "#F38BA8"
+primary_pressed = "#FAB387"
+primary_disabled = "#5C5F77"
+
+# Secondary colors (teal accents)
+secondary = "#94E2D5"
+secondary_pressed = "#89DCEB"
+secondary_disabled = "#45475A"
+
+# Text colors
+text_primary = "#CDD6F4"
+text_secondary = "#BAC2DE"
+text_disabled = "#A6ADC8"
+
+# Semantic colors
+success = "#A6E3A1"
+error = "#F38BA8"
+warning = "#F9E2AF"
+info = "#89A6FB"
+
+# UI elements
+card_background = "#313244"
+card_border = "#45475A"
+icon_primary = "#CDD6F4"
+icon_secondary = "#BAC2DE"
+icon_disabled = "#A6ADC8"
+
+# Special elements
+seek_bar_active = "#F38BA8"
+seek_bar_inactive = "#45475A"
+spectrum_primary = "#F38BA8"
+spectrum_secondary = "#94E2D5"
+
+# Gradients for album art placeholders
+gradient_start = "#F38BA8"
+gradient_end = "#94E2D5"

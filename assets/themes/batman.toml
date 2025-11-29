@@ -1,0 +1,50 @@
+# Batman Theme
+# Dark knight inspired color scheme
+
+name = "Batman"
+author = "The Bat Theme"
+
+[colors]
+# Background colors
+scaffold_background = "#0C0C0C"
+surface_primary = "#1A1A1A"
+surface_secondary = "#2D2D2D"
+app_bar_background = "#1A1A1A"
+
+# Primary colors (yellow/gold accents)
+primary = "#FFC300"
+primary_pressed = "#E6B400"
+primary_disabled = "#666600"
+
+# Secondary colors (subtle blues)
+secondary = "#4A90E2"
+secondary_pressed = "#357ABD"
+secondary_disabled = "#1A1A1A"
+
+# Text colors
+text_primary = "#F5F5F5"
+text_secondary = "#B8B8B8"
+text_disabled = "#666666"
+
+# Semantic colors
+success = "#4CAF50"
+error = "#F44336"
+warning = "#FF9800"
+info = "#2196F3"
+
+# UI elements
+card_background = "#1A1A1A"
+card_border = "#333333"
+icon_primary = "#F5F5F5"
+icon_secondary = "#B8B8B8"
+icon_disabled = "#666666"
+
+# Special elements
+seek_bar_active = "#FFC300"
+seek_bar_inactive = "#333333"
+spectrum_primary = "#FFC300"
+spectrum_secondary = "#4A90E2"
+
+# Gradients for album art placeholders
+gradient_start = "#FFC300"
+gradient_end = "#4A90E2"

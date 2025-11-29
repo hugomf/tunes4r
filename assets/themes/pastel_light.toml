@@ -1,0 +1,51 @@
+# Pastel Light
+# Soft, gentle, and soothing light theme with pastel colors
+# Perfect for users who prefer calm, colorful interfaces
+
+name = "Pastel Light"
+author = "Pastel Dreams"
+
+[colors]
+# Background colors
+scaffold_background = "#FEFCFF"
+surface_primary = "#F8F5FF"
+surface_secondary = "#F0EBFF"
+app_bar_background = "#F8F5FF"
+
+# Primary colors (soft lavender)
+primary = "#C084FC"
+primary_pressed = "#A855F7"
+primary_disabled = "#D1C4E9"
+
+# Secondary colors (gentle mint)
+secondary = "#86EFAC"
+secondary_pressed = "#22C55E"
+secondary_disabled = "#F8F5FF"
+
+# Text colors
+text_primary = "#4C1D95"
+text_secondary = "#6B7280"
+text_disabled = "#9CA3AF"
+
+# Semantic colors
+success = "#10B981"
+error = "#EF4444"
+warning = "#F59E0B"
+info = "#3B82F6"
+
+# UI elements
+card_background = "#FFFFFF"
+card_border = "#E5E7EB"
+icon_primary = "#4C1D95"
+icon_secondary = "#6B7280"
+icon_disabled = "#9CA3AF"
+
+# Special elements
+seek_bar_active = "#C084FC"
+seek_bar_inactive = "#E5E7EB"
+spectrum_primary = "#C084FC"
+spectrum_secondary = "#86EFAC"
+
+# Gradients for album art placeholders
+gradient_start = "#C084FC"
+gradient_end = "#86EFAC"

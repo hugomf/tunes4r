@@ -1,0 +1,51 @@
+# Dracula Theme
+# Famous dark theme popular in developer communities
+# Colors inspired by Zeno Rocha's Dracula theme
+
+name = "Dracula"
+author = "Zeno Rocha"
+
+[colors]
+# Background colors
+scaffold_background = "#282A36"
+surface_primary = "#44475A"
+surface_secondary = "#6272A4"
+app_bar_background = "#44475A"
+
+# Primary colors (pink/purple accents)
+primary = "#FF79C6"
+primary_pressed = "#BD93F9"
+primary_disabled = "#6272A4"
+
+# Secondary colors (cyan accents)
+secondary = "#8BE9FD"
+secondary_pressed = "#50FA7B"
+secondary_disabled = "#6272A4"
+
+# Text colors
+text_primary = "#F8F8F2"
+text_secondary = "#F8F8F2"
+text_disabled = "#6272A4"
+
+# Semantic colors
+success = "#50FA7B"
+error = "#FF5555"
+warning = "#F1FA8C"
+info = "#BD93F9"
+
+# UI elements
+card_background = "#44475A"
+card_border = "#6272A4"
+icon_primary = "#F8F8F2"
+icon_secondary = "#F8F8F2"
+icon_disabled = "#6272A4"
+
+# Special elements
+seek_bar_active = "#FF79C6"
+seek_bar_inactive = "#6272A4"
+spectrum_primary = "#FF79C6"
+spectrum_secondary = "#8BE9FD"
+
+# Gradients for album art placeholders
+gradient_start = "#FF79C6"
+gradient_end = "#BD93F9"

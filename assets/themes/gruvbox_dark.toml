@@ -1,0 +1,51 @@
+# Gruvbox Dark
+# The classic dark variant of morhetz's iconic Gruvbox theme
+# True dark background with vibrant, high-contrast colors
+
+name = "Gruvbox Dark"
+author = "morhetz (classic dark)"
+
+[colors]
+# Background colors
+scaffold_background = "#1D2021"
+surface_primary = "#3C3836"
+surface_secondary = "#504945"
+app_bar_background = "#282828"
+
+# Primary colors (true gruvbox yellow - brighter for dark theme)
+primary = "#FABD2F"
+primary_pressed = "#D79921"
+primary_disabled = "#A89984"
+
+# Secondary colors (vibrant gruvbox green-aqua combo)
+secondary = "#83A598"
+secondary_pressed = "#689D6A"
+secondary_disabled = "#504945"
+
+# Text colors
+text_primary = "#FBF1C7"
+text_secondary = "#EBDBB2"
+text_disabled = "#A89984"
+
+# Semantic colors
+success = "#B8BB26"
+error = "#FB4934"
+warning = "#FE8019"
+info = "#83A598"
+
+# UI elements
+card_background = "#282828"
+card_border = "#504945"
+icon_primary = "#FBF1C7"
+icon_secondary = "#EBDBB2"
+icon_disabled = "#A89984"
+
+# Special elements
+seek_bar_active = "#FABD2F"
+seek_bar_inactive = "#504945"
+spectrum_primary = "#FABD2F"
+spectrum_secondary = "#83A598"
+
+# Gradients for album art placeholders
+gradient_start = "#FABD2F"
+gradient_end = "#83A598"

@@ -1,0 +1,51 @@
+# Tokyo Night
+# A clean, dark and beautiful theme inspired by Tokyo at night
+# Created by enkia, one of the most downloaded VS Code themes
+
+name = "Tokyo Night"
+author = "enkia"
+
+[colors]
+# Background colors
+scaffold_background = "#1A1B26"
+surface_primary = "#16161E"
+surface_secondary = "#2A2A37"
+app_bar_background = "#16161E"
+
+# Primary colors (blue highlights)
+primary = "#7AA2F7"
+primary_pressed = "#7DCFFF"
+primary_disabled = "#414868"
+
+# Secondary colors (purple accents)
+secondary = "#BB9AF7"
+secondary_pressed = "#9ECE6A"
+secondary_disabled = "#2A2A37"
+
+# Text colors
+text_primary = "#C0CAF5"
+text_secondary = "#A9B1D6"
+text_disabled = "#787C99"
+
+# Semantic colors
+success = "#9ECE6A"
+error = "#F7768E"
+warning = "#E0AF68"
+info = "#7AA2F7"
+
+# UI elements
+card_background = "#16161E"
+card_border = "#2A2A37"
+icon_primary = "#C0CAF5"
+icon_secondary = "#A9B1D6"
+icon_disabled = "#787C99"
+
+# Special elements
+seek_bar_active = "#7AA2F7"
+seek_bar_inactive = "#2A2A37"
+spectrum_primary = "#7AA2F7"
+spectrum_secondary = "#BB9AF7"
+
+# Gradients for album art placeholders
+gradient_start = "#7AA2F7"
+gradient_end = "#BB9AF7"

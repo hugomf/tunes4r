@@ -1,0 +1,49 @@
+# Gruvbox Light (Hard contrast) – the real one
+# Faithful reproduction of morhetz/gruvbox light hard as of 2025
+name = "Gruvbox Light"
+author = "morhetz (classic light hard)"
+
+[colors]
+# Background colors – pure hard light background
+scaffold_background = "#F2E5BC"   # bg0_h  (hard)
+surface_primary     = "#F2E5BC"   # bg0    (normal background)
+surface_secondary   = "#EBDBC2"   # bg1
+app_bar_background   = "#EBDBC2"   # same as surface_primary for clean look
+
+# Primary – classic gruvbox yellow (used for highlights & accents)
+primary             = "#AF3A03"   # red    – the real “accent” in light hard
+primary_pressed     = "#9D0006"   # darker red when pressed
+primary_disabled    = "#927860"   # gray
+
+# Secondary – warm green (most people expect green as secondary in light)
+secondary           = "#79740E"   # green
+secondary_pressed   = "#5F5F00"
+secondary_disabled  = "#927860"
+
+# Text colors – high contrast on light background
+text_primary        = "#3C3836"   # fg1 / dark0
+text_secondary     = "#504945"   # fg2 / dark1
+text_disabled       = "#7C6F64"   # gray
+
+# Semantic colors – exact original gruvbox light palette
+success = "#79740E"   # green
+error   = "#9D0006"   # bright red
+warning = "#B57614"   # orange
+info    = "#076678"   # blue
+
+# UI elements
+card_background     = "#F2E5BC"   # bg0
+card_border         = "#D5C4A1"   # bg2
+icon_primary        = "#3C3836"
+icon_secondary      = "#504945"
+icon_disabled       = "#7C6F64"
+
+# Seek bar & spectrum – keep the classic yellow/orange accent
+seek_bar_active     = "#AF3A03"   # red (stands out beautifully on light)
+seek_bar_inactive   = "#D5C4A1"
+spectrum_primary    = "#AF3A03"   # red
+spectrum_secondary  = "#B57614"   # orange
+
+# Placeholder gradient – warm yellow→orange (feels very gruvbox light)
+gradient_start      = "#FABD2F"   # bright yellow (same as dark theme for recognition)
+gradient_end        = "#FE8019"   # orange
