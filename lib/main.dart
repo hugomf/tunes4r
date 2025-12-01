@@ -15,10 +15,13 @@ import 'package:tunes4r/models/playlist.dart';
 // Local imports
 import 'package:tunes4r/models/song.dart';
 import 'package:tunes4r/services/playlist_import_service.dart';
+
 import 'package:tunes4r/utils/theme_colors.dart';
 import 'package:tunes4r/utils/theme_manager.dart';
 import 'package:tunes4r/widgets/download_tab.dart';
 import 'package:tunes4r/widgets/equalizer_dialog.dart';
+import 'package:tunes4r/widgets/playlist_state.dart';
+
 
 enum SearchMode { songs, albums }
 
@@ -66,11 +69,8 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
   SharedPreferences? _prefs;
 
   List<Song> _library = [];
-  List<Song> _playlist = []; // Current playing list
   final List<Song> _queue = [];    // Next songs to play
   List<Song> _favorites = [];
-  List<Playlist> _userPlaylists = [];
-  Playlist? _currentPlaylist;
   Song? _currentSong;
   bool _isPlaying = false;
   bool _isShuffling = false;
@@ -83,10 +83,6 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
   bool _isSelectionMode = false;
   final Set<Song> _selectedSongs = {};
 
-  // Playlist management state (for Playlist tab)
-  bool _isManagingPlaylists = true; // true = show playlist list, false = show current playlist
-
-
   // Equalizer bands (10-band EQ for professional frequency control)
   List<double> _eqBands = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
   bool _isEqualizerEnabled = false;
@@ -94,6 +90,9 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
   // Spectrum visualizer
   final List<double> _spectrumData = List.generate(32, (index) => 0.0);
   Timer? _spectrumTimer;
+
+  // Playlist widget state management
+  late final PlaylistState _playlistState;
 
 
 
@@ -105,6 +104,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
       print('App initialized successfully');
       _setupAudioPlayer();
       _startSpectrumAnimation();
+      _setupPlaylistState();
     }).catchError((error) {
       print('Error initializing app: $error');
     });
@@ -324,16 +324,10 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
             duration: Duration(milliseconds: map['duration'] as int? ?? 0),
             trackNumber: map['track_number'] as int?,
           )).toList();
-
-          _playlist = playlistSongs.map((map) {
-            return _library.firstWhere(
-              (song) => song.path == map['song_path'],
-              orElse: () => Song(title: 'Unknown', path: map['song_path'] as String),
-            );
-          }).toList();
-
-          _userPlaylists = userPlaylists;
         });
+
+        // Load legacy playlist songs
+        await _playlistState.loadLegacyPlaylists(_library);
       }
     } catch (e) {
       print('Error loading library: $e');
@@ -366,9 +360,9 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     if (_database == null) return;
     try {
       await _database!.delete('playlists');
-      for (int i = 0; i < _playlist.length; i++) {
+      for (int i = 0; i < _playlistState.playlist.length; i++) {
         await _database!.insert('playlists', {
-          'song_path': _playlist[i].path,
+          'song_path': _playlistState.playlist[i].path,
           'position': i,
         });
       }
@@ -407,6 +401,56 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
       if (mounted) {
         setState(() => _isPlaying = state == PlayerState.playing);
       }
+    });
+  }
+
+  void _setupPlaylistState() {
+    // Initialize PlaylistState with database and callbacks
+    _playlistState = PlaylistState();
+    _playlistState.setDatabase(_database);
+
+    // Set up callbacks for playlist operations
+    _playlistState.setCallbacks(PlaylistCallbacks(
+      addToPlaylist: (Song song) async {
+        _addToPlaylist(song);
+        setState(() {});
+      },
+      addToPlayNext: (Song song, bool showSnackbar) async {
+        setState(() {
+          if (showSnackbar) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Added "${song.title}" to play next',
+                  style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+                ),
+                backgroundColor: ThemeColorsUtil.surfaceColor,
+              ),
+            );
+          }
+          _addToQueue(song);
+        });
+      },
+      playSong: _playSong,
+      showSnackBar: (String message) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              message,
+              style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+            ),
+            backgroundColor: ThemeColorsUtil.surfaceColor,
+          ),
+        );
+      },
+    ));
+
+    // Load playlist data
+    _playlistState.loadUserPlaylists(_library).then((_) {
+      setState(() {});
+    }).then((_) {
+      // Load legacy playlist songs as the current playlist
+      _playlistState.loadLegacyPlaylists(_library);
     });
   }
 
@@ -641,8 +685,8 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
       } else {
         if (_currentSong != null) {
           await _audioPlayer.resume();
-        } else if (_playlist.isNotEmpty) {
-          await _playSong(_playlist[0]);
+        } else if (_playlistState.playlist.isNotEmpty) {
+          await _playSong(_playlistState.playlist[0]);
         }
       }
     } catch (e) {
@@ -665,24 +709,24 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     }
 
     // Third priority: shuffle mode using playlist
-    if (_isShuffling && _playlist.isNotEmpty) {
-      final currentIndex = _playlist.indexOf(_currentSong!);
-      if (_playlist.length > 1) {
+    if (_isShuffling && _playlistState.playlist.isNotEmpty) {
+      final currentIndex = _playlistState.playlist.indexOf(_currentSong!);
+      if (_playlistState.playlist.length > 1) {
         int nextIndex;
         do {
-          nextIndex = Random().nextInt(_playlist.length);
+          nextIndex = Random().nextInt(_playlistState.playlist.length);
         } while (nextIndex == currentIndex);
-        _playSong(_playlist[nextIndex]);
+        _playSong(_playlistState.playlist[nextIndex]);
       }
-    } else if (_playlist.isNotEmpty) {
+    } else if (_playlistState.playlist.isNotEmpty) {
       // Normal mode: next song in sequence
-      int currentIndex = _playlist.indexOf(_currentSong!);
-      if (currentIndex < _playlist.length - 1) {
-        _playSong(_playlist[currentIndex + 1]);
+      int currentIndex = _playlistState.playlist.indexOf(_currentSong!);
+      if (currentIndex < _playlistState.playlist.length - 1) {
+        _playSong(_playlistState.playlist[currentIndex + 1]);
       } else {
         // End of playlist - stop or restart if repeating
-        if (_isRepeating && _playlist.isNotEmpty) {
-          _playSong(_playlist[0]);
+        if (_isRepeating && _playlistState.playlist.isNotEmpty) {
+          _playSong(_playlistState.playlist[0]);
         } else {
           if (mounted) {
             setState(() {
@@ -696,19 +740,19 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
   }
 
   void _playPrevious() {
-    if (_playlist.isEmpty || _currentSong == null) return;
+    if (_playlistState.playlist.isEmpty || _currentSong == null) return;
 
-    int currentIndex = _playlist.indexOf(_currentSong!);
+    int currentIndex = _playlistState.playlist.indexOf(_currentSong!);
     if (currentIndex > 0) {
-      _playSong(_playlist[currentIndex - 1]);
+      _playSong(_playlistState.playlist[currentIndex - 1]);
     }
   }
 
   void _addToPlaylist(Song song) {
     if (mounted) {
       setState(() {
-        if (!_playlist.contains(song)) {
-          _playlist.add(song);
+        if (!_playlistState.playlist.contains(song)) {
+          _playlistState.playlist.add(song);
         }
       });
     }
@@ -771,7 +815,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
       return;
     }
 
-    if (_userPlaylists.isEmpty) {
+    if (_playlistState.userPlaylists.isEmpty) {
       print('❌ No playlists available');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -796,7 +840,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
           style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
         ),
         children: [
-          ..._userPlaylists.map((playlist) => SimpleDialogOption(
+          ..._playlistState.userPlaylists.map((playlist) => SimpleDialogOption(
             onPressed: () => Navigator.of(context).pop(playlist),
             child: Padding(
               padding: const EdgeInsets.all(8.0),
@@ -926,9 +970,9 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
       );
 
       setState(() {
-        final index = _userPlaylists.indexOf(selectedPlaylist);
+        final index = _playlistState.userPlaylists.indexOf(selectedPlaylist);
         if (index != -1) {
-          _userPlaylists[index] = updatedPlaylist;
+          _playlistState.userPlaylists[index] = updatedPlaylist;
         }
       });
 
@@ -990,7 +1034,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
       );
 
       setState(() {
-        _userPlaylists.add(newPlaylist);
+        _playlistState.userPlaylists.add(newPlaylist);
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1064,9 +1108,9 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
       );
 
       setState(() {
-        final index = _userPlaylists.indexOf(playlist);
+        final index = _playlistState.userPlaylists.indexOf(playlist);
         if (index != -1) {
-          _userPlaylists[index] = updatedPlaylist;
+          _playlistState.userPlaylists[index] = updatedPlaylist;
         }
       });
 
@@ -1096,13 +1140,13 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
   Future<void> _loadPlaylist(Playlist playlist) async {
     setState(() {
-      _playlist = List.from(playlist.songs);
-      _currentPlaylist = playlist;
+      _playlistState.playlist = List.from(playlist.songs);
+      _playlistState.currentPlaylist = playlist;
     });
     _savePlaylist();
 
-    if (_playlist.isNotEmpty) {
-      await _playSong(_playlist[0]);
+    if (_playlistState.playlist.isNotEmpty) {
+      await _playSong(_playlistState.playlist[0]);
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1191,9 +1235,9 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
       print('🔄 Updating UI state...');
       setState(() {
-        _userPlaylists.remove(playlist);
-        if (_currentPlaylist == playlist) {
-          _currentPlaylist = null;
+        _playlistState.userPlaylists.remove(playlist);
+        if (_playlistState.currentPlaylist == playlist) {
+          _playlistState.currentPlaylist = null;
           print('🎵 Cleared current playlist');
         }
       });
@@ -1225,7 +1269,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
   void _removeFromPlaylist(Song song) {
     if (mounted) {
       setState(() {
-        _playlist.remove(song);
+        _playlistState.playlist.remove(song);
       });
     }
     _savePlaylist();
@@ -1278,7 +1322,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
           _selectedIndex == 0
             ? 'Library (${_library.length})'
             : _selectedIndex == 1
-                ? 'Playlist (${_playlist.length})'
+                ? 'Playlist (${_playlistState.playlist.length})'
                 : _selectedIndex == 2
                     ? 'Now Playing'
                     : _selectedIndex == 3
@@ -1729,7 +1773,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
   Widget _buildPlaylist() {
     // Playlist Management View
-    if (_isManagingPlaylists) {
+    if (_playlistState.isManagingPlaylists) {
       return Column(
         children: [
           // Create New Playlist Button and Import Button
@@ -1850,7 +1894,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
           // Playlists List
           Expanded(
-            child: _userPlaylists.isEmpty
+            child: _playlistState.userPlaylists.isEmpty
                 ? Center(
                     child: Text(
                       '🎵 No playlists yet.\nCreate your first playlist above!',
@@ -1863,10 +1907,10 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _userPlaylists.length,
+                    itemCount: _playlistState.userPlaylists.length,
                     itemBuilder: (context, index) {
-                      final playlist = _userPlaylists[index];
-                      final bool isActive = _currentPlaylist == playlist;
+                      final playlist = _playlistState.userPlaylists[index];
+                      final bool isActive = _playlistState.currentPlaylist == playlist;
                       return Container(
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         decoration: BoxDecoration(
@@ -1888,7 +1932,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                               child: InkWell(
                                 onTap: () async {
                                   await _loadPlaylist(playlist);
-                                  setState(() => _isManagingPlaylists = false);
+                                  setState(() => _playlistState.isManagingPlaylists = false);
                                 },
                                 child: Padding(
                                   padding: const EdgeInsets.all(16),
@@ -1948,7 +1992,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                                 switch (value) {
                                   case 'edit':
                                     await _loadPlaylist(playlist);
-                                    setState(() => _isManagingPlaylists = false);
+                                    setState(() => _playlistState.isManagingPlaylists = false);
                                     break;
                                   case 'delete':
                                     await _deletePlaylist(playlist);
@@ -2011,7 +2055,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                     Icons.arrow_back,
                     color: ThemeColorsUtil.textColorPrimary,
                   ),
-                  onPressed: () => setState(() => _isManagingPlaylists = true),
+                  onPressed: () => setState(() => _playlistState.isManagingPlaylists = true),
                   tooltip: 'Back to Playlists',
                 ),
                 const SizedBox(width: 8),
@@ -2020,7 +2064,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _currentPlaylist?.name ?? 'Current Playlist',
+                        _playlistState.currentPlaylist?.name ?? 'Current Playlist',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -2028,7 +2072,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                         ),
                       ),
                       Text(
-                        '${_playlist.length} ${pluralSongs(_playlist.length)}',
+                        '${_playlistState.playlist.length} ${pluralSongs(_playlistState.playlist.length)}',
                         style: TextStyle(
                           color: ThemeColorsUtil.textColorSecondary,
                         ),
@@ -2042,7 +2086,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
           // Playlist Content
           Expanded(
-            child: _playlist.isEmpty
+            child: _playlistState.playlist.isEmpty
                 ? Center(
                     child: Text(
                       '🎵 This playlist is empty.\nAdd songs from the Library.',
@@ -2055,17 +2099,17 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                   )
                 : ReorderableListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: _playlist.length,
+                    itemCount: _playlistState.playlist.length,
                     onReorder: (oldIndex, newIndex) {
                       setState(() {
                         if (newIndex > oldIndex) newIndex--;
-                        final song = _playlist.removeAt(oldIndex);
-                        _playlist.insert(newIndex, song);
+                        final song = _playlistState.playlist.removeAt(oldIndex);
+                        _playlistState.playlist.insert(newIndex, song);
                         _savePlaylist();
                       });
                     },
                     itemBuilder: (context, index) {
-                      final song = _playlist[index];
+                      final song = _playlistState.playlist[index];
                       bool isCurrent = song == _currentSong;
                       return ListTile(
                         key: ValueKey(song.path),
@@ -2511,7 +2555,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
         if (mounted) {
           setState(() {
             _library.clear();
-            _playlist.clear();
+            _playlistState.playlist.clear();
             _favorites.clear();
             _currentSong = null;
             _isPlaying = false;
@@ -2672,8 +2716,8 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                                       ),
                                       onPressed: () {
                                         setState(() {
-                                          _playlist.clear();
-                                          _playlist.addAll(sortedAlbumSongs);
+                                          _playlistState.playlist.clear();
+                                          _playlistState.playlist.addAll(sortedAlbumSongs);
                                           _playSong(song);
                                         });
                                       },
@@ -2685,7 +2729,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                                       ),
                                       onPressed: () {
                                         setState(() {
-                                          _playlist.addAll(sortedAlbumSongs);
+                                          _playlistState.playlist.addAll(sortedAlbumSongs);
                                         });
                                       },
                                     ),
@@ -2877,7 +2921,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
       // Parse and match tracks
       final importService = PlaylistImportService(
         library: _library,
-        existingPlaylists: _userPlaylists,
+        existingPlaylists: _playlistState.userPlaylists,
       );
 
       final importResult = await importService.importPlaylist(file);
@@ -3009,7 +3053,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
               await _createPlaylist(playlistName);
 
               // Find the newly created playlist (it should be the last one)
-              final newPlaylist = _userPlaylists.lastWhere(
+              final newPlaylist = _playlistState.userPlaylists.lastWhere(
                 (p) => p.name == playlistName,
                 orElse: () => Playlist(
                   id: null,
@@ -3029,7 +3073,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
                 // Load the playlist to switch to playlist view
                 await _loadPlaylist(newPlaylist);
-                setState(() => _isManagingPlaylists = false);
+                setState(() => _playlistState.isManagingPlaylists = false);
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
