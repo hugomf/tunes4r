@@ -116,7 +116,7 @@ async def download_song_async(song: Dict[str, str], output_dir: str, download_id
     for i, query in enumerate(search_queries):
         print(f"🔍 Trying search query {i+1}/{len(search_queries)}: '{query}'")
 
-        # yt-dlp command with strict individual track filtering
+        # Enhanced yt-dlp command with better headers and options to avoid 403
         cmd = [
             "yt-dlp",
             "--extract-audio",
@@ -126,8 +126,19 @@ async def download_song_async(song: Dict[str, str], output_dir: str, download_id
             "--force-overwrites",
             "--no-playlist",
             "--quiet",
-            # Critical filters for individual tracks (NOT album compilations) - relaxed for older/optimized tracks
-            "--match-filter", "!is_live & duration < 900 & duration > 30",  # 30 seconds to 15 minutes - covers more formats
+            # Add user agent to avoid bot detection
+            "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            # Add referer
+            "--referer", "https://www.youtube.com/",
+            # Use cookies if available (helps with rate limiting)
+            # "--cookies-from-browser", "chrome",  # Uncomment if you have Chrome with YouTube login
+            # Add more retries
+            "--retries", "3",
+            "--fragment-retries", "3",
+            # Add sleep between requests
+            "--sleep-requests", "1",
+            # Match filters
+            "--match-filter", "!is_live & duration < 900 & duration > 30",
             f"ytsearch:{query}"
         ]
 
@@ -149,7 +160,6 @@ async def download_song_async(song: Dict[str, str], output_dir: str, download_id
                     return metadata_success, output_path if metadata_success else "Metadata fix failed"
                 else:
                     print(f"⚠️ Download appeared to succeed but file is empty ({file_size} bytes)")
-                    # Remove empty file
                     try:
                         os.remove(output_path)
                     except:
@@ -167,6 +177,11 @@ async def download_song_async(song: Dict[str, str], output_dir: str, download_id
                 print(f"❌ Search query {i+1} failed: {detailed_error}")
                 last_error = detailed_error
 
+                # If it's a 403 error, add delay before next attempt
+                if "403" in error_msg or "Forbidden" in error_msg:
+                    print(f"⏰ 403 detected, waiting 5 seconds before retry...")
+                    await asyncio.sleep(5)
+
             # Clean up any partial files between attempts
             if os.path.exists(output_path):
                 try:
@@ -180,10 +195,13 @@ async def download_song_async(song: Dict[str, str], output_dir: str, download_id
         except Exception as e:
             print(f"❌ Search query {i+1} error: {str(e)}")
             last_error = str(e)
+        
+        # Add delay between search attempts to avoid rate limiting
+        if i < len(search_queries) - 1:  # Don't sleep after last attempt
+            await asyncio.sleep(2)
 
     print(f"💥 All search strategies failed. Last error: {last_error}")
     return False, f"No suitable video found after trying {len(search_queries)} different search queries. Last error: {last_error}"
-
 
 def enrich_metadata(song: Dict[str, str], filepath: str) -> Dict[str, str]:
     """Enrich metadata using MusicBrainz API for better accuracy"""
@@ -1037,9 +1055,17 @@ async def process_song_download(download_id: str, songs: List[Dict[str, str]]):
 
             # Update final progress
             progress = int(((i + 1) / len(songs)) * 100)
+            total_processed = completed + failed
+            if total_processed < len(songs):
+                status = "downloading"  # Still in progress
+            elif failed > 0:
+                status = "error"  # All done but some failed
+            else:
+                status = "completed"  # All successful
+
             update_download_status(
                 download_id,
-                "downloading" if completed < len(songs) else "completed",
+                status,
                 total_songs=len(songs),
                 completed_songs=completed,
                 failed_songs=failed,
