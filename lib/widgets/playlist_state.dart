@@ -5,6 +5,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:tunes4r/models/playlist.dart';
 import 'package:tunes4r/models/song.dart';
 import 'package:tunes4r/services/playlist_import_service.dart';
+import 'package:tunes4r/services/playlist_repository.dart';
 import 'package:tunes4r/utils/theme_colors.dart';
 
 class PlaylistCallbacks {
@@ -29,6 +30,7 @@ class PlaylistState extends ChangeNotifier {
   bool _isManagingPlaylists = true; // true = show playlist list, false = show current playlist
 
   Database? _database;
+  PlaylistRepository? _repository;
   PlaylistCallbacks? _callbacks;
 
   // Getters
@@ -51,9 +53,13 @@ class PlaylistState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Set database reference
+  // Set database reference and initialize repository
   void setDatabase(Database? database) {
     _database = database;
+    if (database != null) {
+      _repository = PlaylistRepository();
+      _repository!.setDatabase(database);
+    }
   }
 
   // Set callbacks
@@ -61,35 +67,12 @@ class PlaylistState extends ChangeNotifier {
     _callbacks = callbacks;
   }
 
-  // Load user playlists from database with song resolution
+  // Load user playlists from repository
   Future<void> loadUserPlaylists(List<Song> library) async {
-    if (_database == null) return;
+    if (_repository == null) return;
 
     try {
-      final userPlaylistsData = await _database!.query('user_playlists', orderBy: 'updated_at DESC');
-      final userPlaylists = <Playlist>[];
-
-      for (final playlistData in userPlaylistsData) {
-        // Load songs for each playlist
-        final playlistSongs = await _database!.query(
-          'playlist_songs',
-          where: 'playlist_id = ?',
-          whereArgs: [playlistData['id']],
-          orderBy: 'position ASC',
-        );
-
-        // Resolve songs from the library
-        final playlistSongsList = playlistSongs.map((songData) {
-          return library.firstWhere(
-            (song) => song.path == songData['song_path'],
-            orElse: () => Song(title: 'Unknown', path: songData['song_path'] as String),
-          );
-        }).toList();
-
-        userPlaylists.add(Playlist.fromMap(playlistData, playlistSongsList));
-      }
-
-      _userPlaylists = userPlaylists;
+      _userPlaylists = await _repository!.getAllPlaylists(library);
       notifyListeners();
     } catch (e) {
       print('Error loading user playlists: $e');
@@ -131,26 +114,10 @@ class PlaylistState extends ChangeNotifier {
   }
 
   Future<void> createPlaylist(String name) async {
-    if (_database == null || name.trim().isEmpty || _callbacks == null) return;
+    if (_repository == null || name.trim().isEmpty || _callbacks == null) return;
 
     try {
-      final now = DateTime.now();
-      final id = await _database!.insert('user_playlists', {
-        'name': name.trim(),
-        'type': PlaylistType.userCreated.index,
-        'created_at': now.toIso8601String(),
-        'updated_at': now.toIso8601String(),
-      });
-
-      final newPlaylist = Playlist(
-        id: id,
-        name: name.trim(),
-        type: PlaylistType.userCreated,
-        createdAt: now,
-        updatedAt: now,
-        songs: [],
-      );
-
+      final newPlaylist = await _repository!.createPlaylist(name.trim(), PlaylistType.userCreated);
       _userPlaylists.add(newPlaylist);
       notifyListeners();
 
@@ -162,37 +129,10 @@ class PlaylistState extends ChangeNotifier {
   }
 
   Future<void> addSongToPlaylist(Playlist playlist, Song song, {bool showSnackbar = true}) async {
-    if (_database == null || playlist.id == null) return;
+    if (_repository == null || playlist.id == null) return;
 
     try {
-      // Check if song is already in playlist
-      final existing = await _database!.query(
-        'playlist_songs',
-        where: 'playlist_id = ? AND song_path = ?',
-        whereArgs: [playlist.id, song.path],
-      );
-
-      if (existing.isNotEmpty) {
-        // Song already exists - silently continue for bulk operations
-        if (showSnackbar) {
-          _callbacks?.showSnackBar('Song already in playlist');
-        }
-        return;
-      }
-
-      // Get the highest position in the playlist
-      final positionResult = await _database!.rawQuery(
-        'SELECT MAX(position) as max_pos FROM playlist_songs WHERE playlist_id = ?',
-        [playlist.id],
-      );
-
-      final position = (positionResult.first['max_pos'] as int? ?? -1) + 1;
-
-      await _database!.insert('playlist_songs', {
-        'playlist_id': playlist.id,
-        'song_path': song.path,
-        'position': position,
-      });
+      await _repository!.addSongToPlaylist(playlist.id!, song);
 
       // Update playlist in memory
       final updatedPlaylist = playlist.copyWith(
@@ -205,20 +145,19 @@ class PlaylistState extends ChangeNotifier {
         _userPlaylists[index] = updatedPlaylist;
       }
 
-      // Update database
-      await _database!.update(
-        'user_playlists',
-        {'updated_at': DateTime.now().toIso8601String()},
-        where: 'id = ?',
-        whereArgs: [playlist.id],
-      );
-
       if (showSnackbar) {
         _callbacks?.showSnackBar('Added to "${playlist.name}"');
       }
       notifyListeners();
     } catch (e) {
-      print('Error adding song "${song.title}" to playlist: $e');
+      if (e.toString().contains('already exists')) {
+        // Song already exists - silently continue for bulk operations
+        if (showSnackbar) {
+          _callbacks?.showSnackBar('Song already in playlist');
+        }
+      } else {
+        print('Error adding song "${song.title}" to playlist: $e');
+      }
     }
   }
 
@@ -233,8 +172,8 @@ class PlaylistState extends ChangeNotifier {
   Future<void> deletePlaylist(Playlist playlist, BuildContext context) async {
     print('🔍 Attempting to delete playlist: ${playlist.name}, id: ${playlist.id}');
 
-    if (_database == null) {
-      print('❌ Database is null');
+    if (_repository == null) {
+      print('❌ Repository is null');
       return;
     }
 
@@ -279,21 +218,8 @@ class PlaylistState extends ChangeNotifier {
     }
 
     try {
-      print('🗃️ Deleting from database...');
-      final deletedRows = await _database!.delete(
-        'user_playlists',
-        where: 'id = ?',
-        whereArgs: [playlist.id],
-      );
-      print('🗃️ Deleted $deletedRows rows from user_playlists');
-
-      // Also delete playlist songs
-      final deletedSongs = await _database!.delete(
-        'playlist_songs',
-        where: 'playlist_id = ?',
-        whereArgs: [playlist.id],
-      );
-      print('🗃️ Deleted $deletedSongs playlist songs');
+      print('🗃️ Deleting from repository...');
+      await _repository!.deletePlaylist(playlist.id!);
 
       print('🔄 Updating UI state...');
       _userPlaylists.remove(playlist);
@@ -317,12 +243,20 @@ class PlaylistState extends ChangeNotifier {
     _savePlaylist();
   }
 
-  void reorderPlaylist(int oldIndex, int newIndex) {
+  void reorderPlaylist(int oldIndex, int newIndex) async {
     if (newIndex > oldIndex) newIndex--;
     final song = _currentPlaylistSongs.removeAt(oldIndex);
     _currentPlaylistSongs.insert(newIndex, song);
-    _savePlaylist();
     notifyListeners();
+
+    final currentPlaylist = _currentPlaylist;
+    if (currentPlaylist?.id != null && _repository != null) {
+      try {
+        await _repository!.reorderSongsInPlaylist(currentPlaylist!.id!, _currentPlaylistSongs);
+      } catch (e) {
+        print('Error reordering playlist: $e');
+      }
+    }
   }
 
   void setManagingPlaylists(bool value) {
@@ -336,8 +270,8 @@ class PlaylistState extends ChangeNotifier {
     BuildContext context,
     List<Song> library,
   ) async {
-    if (selectedSongs.isEmpty || _userPlaylists.isEmpty) {
-      print('❌ No songs selected or no playlists available');
+    if (selectedSongs.isEmpty || _userPlaylists.isEmpty || _repository == null) {
+      print('❌ No songs selected, no playlists available, or repository not initialized');
       return;
     }
 
@@ -411,97 +345,27 @@ class PlaylistState extends ChangeNotifier {
       ),
     );
 
-    if (selectedPlaylist == null) {
-      print('❌ User cancelled playlist selection');
+    if (selectedPlaylist == null || selectedPlaylist.id == null) {
+      print('❌ User cancelled playlist selection or playlist has no ID');
       return;
     }
 
     print('🎵 Starting bulk add of ${selectedSongs.length} songs to "${selectedPlaylist.name}"...');
 
-    int added = 0;
-    int skipped = 0;
-    List<Song> songsToAdd = [];
-
-    // First pass: collect songs that aren't already in playlist
-    for (final song in selectedSongs) {
-      try {
-        final existing = await _database!.query(
-          'playlist_songs',
-          where: 'playlist_id = ? AND song_path = ?',
-          whereArgs: [selectedPlaylist.id, song.path],
-        );
-
-        if (existing.isNotEmpty) {
-          skipped++;
-          print('  ⏭️ Skipped "${song.title}" (already exists)');
-        } else {
-          songsToAdd.add(song);
-          print('  ➕ Will add: "${song.title}" by ${song.artist}');
-        }
-      } catch (e) {
-        print('  ❌ Error during duplicate check: ${song.title}, $e');
-      }
-    }
-
-    // Get the current max position for ordering
-    int nextPosition = 0;
     try {
-      final positionResult = await _database!.rawQuery(
-        'SELECT MAX(position) as max_pos FROM playlist_songs WHERE playlist_id = ?',
-        [selectedPlaylist.id],
-      );
-      nextPosition = (positionResult.first['max_pos'] as int? ?? -1) + 1;
-      print('🎵 Next position will be: $nextPosition');
+      // Use repository's bulk method for all database operations
+      await _repository!.addSongsToPlaylistBulk(selectedPlaylist.id!, selectedSongs.toList());
+
+      // Reload playlists to get updated state (simpler than manual state management)
+      await loadUserPlaylists(library);
+
+      print('🎵 Bulk add completed successfully');
+      _callbacks?.showSnackBar('Added songs to "${selectedPlaylist.name}"!');
+
     } catch (e) {
-      print('⚠️ Error getting max position: $e, using 0');
-      nextPosition = 0;
+      print('  ❌ Error during bulk add: $e');
+      _callbacks?.showSnackBar('❌ Failed to add songs: $e');
     }
-
-    // Second pass: bulk insert all valid songs
-    for (int i = 0; i < songsToAdd.length; i++) {
-      final song = songsToAdd[i];
-      try {
-        print('  📝 Inserting song ${i + 1}/${songsToAdd.length}: "${song.title}" at position $nextPosition');
-        await _database!.insert('playlist_songs', {
-          'playlist_id': selectedPlaylist.id,
-          'song_path': song.path,
-          'position': nextPosition,
-        });
-        nextPosition++;
-        added++;
-      } catch (e) {
-        print('  ❌ Error inserting "${song.title}": $e');
-      }
-    }
-
-    // Update in-memory playlist state with all the new songs at once
-    if (added > 0) {
-      final updatedPlaylist = selectedPlaylist.copyWith(
-        songs: [...selectedPlaylist.songs, ...songsToAdd],
-        updatedAt: DateTime.now(),
-      );
-
-      final index = _userPlaylists.indexOf(selectedPlaylist);
-      if (index != -1) {
-        _userPlaylists[index] = updatedPlaylist;
-      }
-
-      // Update the timestamp in database
-      await _database!.update(
-        'user_playlists',
-        {'updated_at': DateTime.now().toIso8601String()},
-        where: 'id = ?',
-        whereArgs: [selectedPlaylist.id],
-      );
-
-      print('📝 Updated playlist in memory and database');
-    }
-
-    // Success message
-    final totalProcessed = added + skipped;
-    print('🎵 Bulk add complete: $added added, $skipped skipped, $totalProcessed total processed');
-
-    _callbacks?.showSnackBar('Added $added ${added == 1 ? 'song' : 'songs'} to "${selectedPlaylist.name}"!${skipped > 0 ? ' ($skipped already existed)' : ''}');
   }
 
   // Playlist import functionality - moved from main.dart
