@@ -9,6 +9,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:tunes4r/models/playlist.dart';
@@ -552,6 +553,71 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
   Future<void> _pickFiles() async {
     try {
+      print('🎵 Starting permission check process...');
+
+      // Step 1: Request modern granular media permissions (Android 13+)
+      print('🎵 Checking granular media permissions...');
+      final audioPermission = await Permission.audio.status;
+      final imagePermission = await Permission.photos.status;
+
+      bool hasPermissions = audioPermission.isGranted && imagePermission.isGranted;
+      print('🎵 Media permissions - Audio: ${audioPermission.isGranted}, Images: ${imagePermission.isGranted}');
+
+      if (!hasPermissions) {
+        print('🎵 Requesting granular media permissions...');
+        final audioResult = await Permission.audio.request();
+        final imageResult = await Permission.photos.request();
+
+        hasPermissions = audioResult.isGranted && imageResult.isGranted;
+        print('🎵 Permission results - Audio: ${audioResult.isGranted}, Images: ${imageResult.isGranted}');
+
+        if (!hasPermissions) {
+          // Permissions denied - show helpful dialog
+          if (mounted) {
+            await showDialog(
+              context: context,
+              builder: (BuildContext context) => AlertDialog(
+                backgroundColor: ThemeColorsUtil.surfaceColor,
+                title: Text(
+                  'Media Access Needed',
+                  style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+                ),
+                content: Text(
+                  'Tunes4R needs access to your media files.\n\n'
+                  'Please grant:\n'
+                  '• Music and audio\n'
+                  '• Photos and videos (for album art)\n\n'
+                  'You can change this later in app settings.',
+                  style: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(
+                      'Later',
+                      style: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      await openAppSettings();
+                      if (mounted) Navigator.of(context).pop();
+                    },
+                    child: Text(
+                      'Open Settings',
+                      style: TextStyle(color: ThemeColorsUtil.primaryColor),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      print('🎵 Media permissions granted - proceeding with file picker...');
+
       // First, let user choose between files and folders
       final result = await showDialog<String>(
         context: context,
@@ -603,7 +669,59 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
         String? folderPath = await FilePicker.platform.getDirectoryPath();
 
         if (folderPath != null) {
-          audioFilePaths = await _getAudioFilesFromDirectory(folderPath);
+          try {
+            audioFilePaths = await _getAudioFilesFromDirectory(folderPath);
+            print('🎵 Scanned folder "$folderPath" and found ${audioFilePaths.length} music files');
+          } catch (e) {
+            print('🎵 Folder scan failed: $e');
+
+            // Check if this might be due to limited permissions on Android 11+
+            // Show dialog explaining they may need "All files access" permission
+            if (mounted) {
+              await showDialog(
+                context: context,
+                builder: (BuildContext context) => AlertDialog(
+                  backgroundColor: ThemeColorsUtil.surfaceColor,
+                  title: Text(
+                    'Folder Access Needed',
+                    style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+                  ),
+                  content: Text(
+                    'Tunes4R needs full storage access to scan music folders. This requires special "All files access" permission on newer Android versions.\n\n'
+                    'Please:\n'
+                    '1. Tap "Open Settings" below\n'
+                    '2. Find "Tunes4R" in the list\n'
+                    '3. Enable "All files access" or "Allow access to all files"\n'
+                    '4. Return to the app and try again\n\n'
+                    'This permission allows Tunes4R to scan your entire music library.',
+                    style: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        await openAppSettings();
+                        if (mounted) {
+                          Navigator.of(context).pop();
+                        }
+                      },
+                      child: Text(
+                        'Open Settings',
+                        style: TextStyle(color: ThemeColorsUtil.primaryColor),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return; // Don't continue if folder scan failed due to permissions
+          }
         }
       }
 
@@ -1313,6 +1431,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 600;
     return Scaffold(
       backgroundColor: ThemeColorsUtil.scaffoldBackgroundColor,
       appBar: AppBar(
@@ -1340,69 +1459,271 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
           if (_selectedIndex == 0) ...[
             // Multi-select mode controls
             if (_isSelectionMode) ...[
-              IconButton(
-                onPressed: _deselectAllSongs,
-                icon: Icon(
-                  Icons.deselect,
-                  color: ThemeColorsUtil.textColorPrimary,
-                ),
-                tooltip: 'Deselect All',
-              ),
-              IconButton(
-                onPressed: _selectAllSongs,
-                icon: Icon(
-                  Icons.select_all,
-                  color: ThemeColorsUtil.textColorPrimary,
-                ),
-                tooltip: 'Select All',
-              ),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: IconButton(
-                  onPressed: _toggleSelectionMode,
+              // On mobile, consolidate some actions
+              if (isMobile) ...[
+                IconButton(
+                  onPressed: _selectedSongs.isEmpty ? null : _addSelectedSongsToPlaylist,
                   icon: Icon(
-                    Icons.cancel,
-                    color: ThemeColorsUtil.textColorSecondary,
+                    Icons.playlist_add,
+                    color: _selectedSongs.isEmpty
+                      ? ThemeColorsUtil.textColorSecondary
+                      : ThemeColorsUtil.primaryColor,
+                    size: 20,
                   ),
-                  tooltip: 'Cancel Selection',
+                  tooltip: 'Add to Playlist',
                 ),
-              ),
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: ThemeColorsUtil.textColorSecondary,
+                    size: 20,
+                  ),
+                  tooltip: 'More Options',
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'select_all':
+                        _selectAllSongs();
+                        break;
+                      case 'deselect_all':
+                        _deselectAllSongs();
+                        break;
+                      case 'cancel':
+                        _toggleSelectionMode();
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'select_all',
+                      child: Row(
+                        children: [
+                          Icon(Icons.select_all, size: 18),
+                          SizedBox(width: 8),
+                          Text('Select All'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'deselect_all',
+                      child: Row(
+                        children: [
+                          Icon(Icons.deselect, size: 18),
+                          SizedBox(width: 8),
+                          Text('Deselect All'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'cancel',
+                      child: Row(
+                        children: [
+                          Icon(Icons.cancel, size: 18),
+                          SizedBox(width: 8),
+                          Text('Cancel'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                IconButton(
+                  onPressed: _deselectAllSongs,
+                  icon: Icon(
+                    Icons.deselect,
+                    color: ThemeColorsUtil.textColorPrimary,
+                  ),
+                  tooltip: 'Deselect All',
+                ),
+                IconButton(
+                  onPressed: _selectAllSongs,
+                  icon: Icon(
+                    Icons.select_all,
+                    color: ThemeColorsUtil.textColorPrimary,
+                  ),
+                  tooltip: 'Select All',
+                ),
+                IconButton(
+                  onPressed: _selectedSongs.isEmpty ? null : _addSelectedSongsToPlaylist,
+                  icon: Icon(
+                    Icons.playlist_add,
+                    color: _selectedSongs.isEmpty
+                      ? ThemeColorsUtil.textColorSecondary
+                      : ThemeColorsUtil.primaryColor,
+                  ),
+                  tooltip: 'Add to Playlist',
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: IconButton(
+                    onPressed: _toggleSelectionMode,
+                    icon: Icon(
+                      Icons.cancel,
+                      color: ThemeColorsUtil.textColorSecondary,
+                    ),
+                    tooltip: 'Cancel Selection',
+                  ),
+                ),
+              ]
             ] else ...[
               // Normal mode controls
-              IconButton(
-                onPressed: _toggleSelectionMode,
+              if (isMobile) ...[
+                // On mobile, show primary action and use overflow menu
+                Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: IconButton(
+                    onPressed: _pickFiles,
+                    icon: Icon(
+                      Icons.add,
+                      color: ThemeColorsUtil.scaffoldBackgroundColor,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: ThemeColorsUtil.primaryColor,
+                    ),
+                    tooltip: 'Add Music',
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: ThemeColorsUtil.textColorSecondary,
+                  ),
+                  tooltip: 'More Options',
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'select':
+                        _toggleSelectionMode();
+                        break;
+                      case 'clear':
+                        _clearLibrary();
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'select',
+                      child: Row(
+                        children: [
+                          Icon(Icons.checklist, size: 18),
+                          SizedBox(width: 8),
+                          Text('Select Songs'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'clear',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.clear_all,
+                            color: ThemeManager().getCurrentColors()?.error ?? const Color(0xFFCC241D),
+                            size: 18,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Clear Library',
+                            style: TextStyle(
+                              color: ThemeManager().getCurrentColors()?.error ?? const Color(0xFFCC241D),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                IconButton(
+                  onPressed: _toggleSelectionMode,
+                  icon: Icon(
+                    Icons.checklist,
+                    color: ThemeColorsUtil.textColorPrimary,
+                  ),
+                  tooltip: 'Select Songs',
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: IconButton(
+                    onPressed: _clearLibrary,
+                    icon: Icon(
+                      Icons.clear_all,
+                      color: ThemeManager().getCurrentColors()?.error ?? const Color(0xFFCC241D),
+                    ),
+                    tooltip: 'Clear Library',
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: IconButton(
+                    onPressed: _pickFiles,
+                    icon: Icon(
+                      Icons.add,
+                      color: ThemeColorsUtil.scaffoldBackgroundColor,
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: ThemeColorsUtil.primaryColor,
+                    ),
+                    tooltip: 'Add Music',
+                  ),
+                ),
+              ]
+            ]
+          ],
+          if (_selectedIndex == 1) ...[
+            if (isMobile) ...[
+              PopupMenuButton<String>(
                 icon: Icon(
-                  Icons.checklist,
+                  Icons.more_vert,
+                  color: ThemeColorsUtil.textColorSecondary,
+                ),
+                tooltip: 'More Options',
+                onSelected: (value) {
+                  switch (value) {
+                    case 'create':
+                      _showCreatePlaylistDialog();
+                      break;
+                    case 'import':
+                      _showPlaylistImportDialog();
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'create',
+                    child: Row(
+                      children: [
+                        Icon(Icons.add, size: 18),
+                        SizedBox(width: 8),
+                        Text('Create Playlist'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'import',
+                    child: Row(
+                      children: [
+                        Icon(Icons.upload_file, size: 18),
+                        SizedBox(width: 8),
+                        Text('Import Playlist'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              IconButton(
+                icon: Icon(
+                  Icons.add,
                   color: ThemeColorsUtil.textColorPrimary,
                 ),
-                tooltip: 'Select Songs',
+                onPressed: _showCreatePlaylistDialog,
+                tooltip: 'Create Playlist',
               ),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: IconButton(
-                  onPressed: _clearLibrary,
-                  icon: Icon(
-                    Icons.clear_all,
-                    color: ThemeManager().getCurrentColors()?.error ?? const Color(0xFFCC241D),
-                  ),
-                  tooltip: 'Clear Library',
+              IconButton(
+                icon: Icon(
+                  Icons.upload_file,
+                  color: ThemeColorsUtil.textColorPrimary,
                 ),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: ElevatedButton.icon(
-                  onPressed: _pickFiles,
-                  icon: Icon(
-                    Icons.add,
-                    color: ThemeColorsUtil.scaffoldBackgroundColor,
-                  ),
-                  label: const Text('Add Music'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ThemeColorsUtil.primaryColor,
-                    foregroundColor: ThemeColorsUtil.scaffoldBackgroundColor,
-                  ),
-                ),
+                onPressed: _showPlaylistImportDialog,
+                tooltip: 'Import Playlist',
               ),
             ]
           ],
@@ -1417,53 +1738,56 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
           ),
         ),
       ),
-      drawer: Drawer(
-        backgroundColor: ThemeColorsUtil.scaffoldBackgroundColor,
-        child: SafeArea(
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                color: ThemeColorsUtil.appBarBackgroundColor,
-                child: Center(
-                  child: Text(
-                    '🎵 Tunes4R',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: ThemeColorsUtil.textColorPrimary,
+      drawer: Container(
+        width: isMobile ? 220.0 : null,
+        child: Drawer(
+          backgroundColor: ThemeColorsUtil.scaffoldBackgroundColor,
+          child: SafeArea(
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  color: ThemeColorsUtil.appBarBackgroundColor,
+                  child: Center(
+                    child: Text(
+                      '🎵 Tunes4R',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: ThemeColorsUtil.textColorPrimary,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  children: [
-                    _buildNavItem(Icons.library_music, 'Library', 0),
-                    _buildNavItem(Icons.playlist_play, 'Playlist', 1),
-                    _buildNavItem(Icons.album, 'Now Playing', 2),
-                    _buildNavItem(Icons.music_note, 'Albums', 3),
-                    _buildNavItem(Icons.favorite, 'Favorites', 4),
-                    _buildNavItem(Icons.cloud_download, 'Download', 5),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    children: [
+                      _buildNavItem(Icons.library_music, 'Library', 0),
+                      _buildNavItem(Icons.playlist_play, 'Playlist', 1),
+                      _buildNavItem(Icons.album, 'Now Playing', 2),
+                      _buildNavItem(Icons.music_note, 'Albums', 3),
+                      _buildNavItem(Icons.favorite, 'Favorites', 4),
+                      _buildNavItem(Icons.cloud_download, 'Download', 5),
 
-                    _buildSettingsTab(6),
+                      _buildSettingsTab(6),
 
-                    // Footer
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text(
-                        'Simple Mode',
-                        style: TextStyle(
-                          color: ThemeColorsUtil.textColorSecondary,
-                          fontSize: 12,
+                      // Footer
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'Simple Mode',
+                          style: TextStyle(
+                            color: ThemeColorsUtil.textColorSecondary,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1489,7 +1813,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
           ),
 
           // Music Player
-          _buildMusicPlayer(),
+          _buildMusicPlayer(isMobile),
         ],
       ),
     );
@@ -1497,6 +1821,10 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
   Widget _buildNavItem(IconData icon, String label, int index) {
     bool isSelected = _selectedIndex == index;
+    // Use shorter labels for mobile to prevent overflow
+    final bool isMobile = MediaQuery.of(context).size.width < 600;
+    final displayLabel = isMobile ? _getShortLabel(label) : label;
+
     return InkWell(
       onTap: () => setState(() => _selectedIndex = index),
       child: Container(
@@ -1511,19 +1839,37 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
             Icon(
               icon,
               color: isSelected ? ThemeColorsUtil.primaryColor : ThemeColorsUtil.textColorSecondary,
+              size: 20,
             ),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? ThemeColorsUtil.primaryColor : ThemeColorsUtil.textColorSecondary,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                displayLabel,
+                style: TextStyle(
+                  color: isSelected ? ThemeColorsUtil.primaryColor : ThemeColorsUtil.textColorSecondary,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 14,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _getShortLabel(String label) {
+    switch (label) {
+      case 'Playlist':
+        return 'List';
+      case 'Now Playing':
+        return 'Playing';
+      case 'Favorites':
+        return 'Favs';
+      default:
+        return label;
+    }
   }
 
   Widget _buildLibrary() {
@@ -1555,7 +1901,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                         ),
                       ),
                       const Spacer(),
-                      TextButton.icon(
+                      IconButton(
                         onPressed: _selectedSongs.isEmpty ? null : _addSelectedSongsToPlaylist,
                         icon: Icon(
                           Icons.playlist_add,
@@ -1564,27 +1910,17 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                             : ThemeColorsUtil.primaryColor,
                           size: 18,
                         ),
-                        label: Text(
-                          'Add to Playlist',
-                          style: TextStyle(
-                            color: _selectedSongs.isEmpty
-                              ? ThemeColorsUtil.textColorSecondary
-                              : ThemeColorsUtil.primaryColor,
-                          ),
-                        ),
+                        tooltip: 'Add to Playlist',
                       ),
                       const SizedBox(width: 8),
-                      TextButton.icon(
+                      IconButton(
                         onPressed: _toggleSelectionMode,
                         icon: Icon(
                           Icons.cancel,
                           color: ThemeColorsUtil.textColorSecondary,
                           size: 18,
                         ),
-                        label: Text(
-                          'Cancel',
-                          style: TextStyle(color: ThemeColorsUtil.textColorSecondary),
-                        ),
+                        tooltip: 'Cancel',
                       ),
                     ],
                   ),
@@ -1741,23 +2077,45 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                                 onPressed: () => _addToPlayNext(song),
                                 tooltip: 'Play Next',
                               ),
-                              IconButton(
+                              PopupMenuButton<String>(
                                 icon: Icon(
-                                  Icons.queue_music,
+                                  Icons.more_vert,
                                   color: ThemeColorsUtil.textColorSecondary,
                                   size: 20,
                                 ),
-                                onPressed: () => _addToQueue(song),
-                                tooltip: 'Add to Queue',
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.playlist_add,
-                                  color: ThemeColorsUtil.textColorSecondary,
-                                  size: 20,
-                                ),
-                                onPressed: () => _addToPlaylist(song),
-                                tooltip: 'Add to Playlist',
+                                tooltip: 'More Options',
+                                onSelected: (String value) {
+                                  switch (value) {
+                                    case 'queue':
+                                      _addToQueue(song);
+                                      break;
+                                    case 'playlist':
+                                      _addToPlaylist(song);
+                                      break;
+                                  }
+                                },
+                                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                                  PopupMenuItem<String>(
+                                    value: 'queue',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.queue_music, size: 18),
+                                        const SizedBox(width: 8),
+                                        Text('Add to Queue'),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuItem<String>(
+                                    value: 'playlist',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.playlist_add, size: 18),
+                                        const SizedBox(width: 8),
+                                        Text('Add to Playlist'),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -1776,122 +2134,6 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     if (_playlistState.isManagingPlaylists) {
       return Column(
         children: [
-          // Create New Playlist Button and Import Button
-          Row(
-            children: [
-              Expanded(
-                child: InkWell(
-                  onTap: () async {
-                    final TextEditingController controller = TextEditingController();
-                    final result = await showDialog<String>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        backgroundColor: ThemeColorsUtil.surfaceColor,
-                        title: Text(
-                          'Create Playlist',
-                          style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
-                        ),
-                        content: TextField(
-                          controller: controller,
-                          decoration: InputDecoration(
-                            hintText: 'Enter playlist name',
-                            hintStyle: TextStyle(color: ThemeColorsUtil.textColorSecondary),
-                          ),
-                          autofocus: true,
-                          style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: Text(
-                              'Cancel',
-                              style: TextStyle(color: ThemeColorsUtil.textColorSecondary),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              final name = controller.text.trim();
-                              if (name.isNotEmpty) {
-                                Navigator.of(context).pop(name);
-                              }
-                            },
-                            child: Text(
-                              'Create',
-                              style: TextStyle(color: ThemeColorsUtil.primaryColor),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-
-                    if (result != null) {
-                      await _createPlaylist(result);
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: ThemeColorsUtil.primaryColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.add,
-                          color: ThemeColorsUtil.scaffoldBackgroundColor,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Create New Playlist',
-                          style: TextStyle(
-                            color: ThemeColorsUtil.scaffoldBackgroundColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: InkWell(
-                  onTap: () => _showPlaylistImportDialog(),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: ThemeColorsUtil.secondary,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.file_upload,
-                          color: ThemeColorsUtil.scaffoldBackgroundColor,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Import Playlist',
-                          style: TextStyle(
-                            color: ThemeColorsUtil.scaffoldBackgroundColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
           // Playlists List
           Expanded(
             child: _playlistState.userPlaylists.isEmpty
@@ -2370,7 +2612,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     );
   }
 
-  Widget _buildMusicPlayer() {
+  Widget _buildMusicPlayer(bool isMobile) {
     return Container(
       padding: const EdgeInsets.all(16),
       color: ThemeColorsUtil.appBarBackgroundColor,
@@ -2405,7 +2647,102 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
           // Controls
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+            children: isMobile ? [
+              // Mobile: Compact controls - all icons visible with tight spacing
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                      padding: EdgeInsets.zero,
+                      icon: Icon(
+                        Icons.shuffle,
+                        color: _isShuffling ? ThemeColorsUtil.primaryColor : ThemeColorsUtil.textColorSecondary,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        setState(() => _isShuffling = !_isShuffling);
+                        _savePreferences();
+                      },
+                      tooltip: 'Shuffle',
+                    ),
+                    const SizedBox(width: 2),
+                    IconButton(
+                      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.skip_previous, size: 20),
+                      onPressed: _playPrevious,
+                      color: ThemeColorsUtil.textColorPrimary,
+                      tooltip: 'Previous',
+                    ),
+                    const SizedBox(width: 2),
+                    Container(
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: ThemeColorsUtil.primaryColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: ThemeColorsUtil.primaryColor.withOpacity(0.3),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        iconSize: 20,
+                        icon: Icon(
+                          _isPlaying ? Icons.pause : Icons.play_arrow,
+                          color: ThemeColorsUtil.scaffoldBackgroundColor,
+                        ),
+                        onPressed: _togglePlayPause,
+                        tooltip: 'Play/Pause',
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    IconButton(
+                      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.skip_next, size: 20),
+                      onPressed: _playNext,
+                      color: ThemeColorsUtil.textColorPrimary,
+                      tooltip: 'Next',
+                    ),
+                    const SizedBox(width: 2),
+                    IconButton(
+                      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                      padding: EdgeInsets.zero,
+                      icon: Icon(
+                        Icons.equalizer,
+                        color: ThemeColorsUtil.textColorSecondary,
+                        size: 20,
+                      ),
+                      onPressed: () => _showEqualizerDialog(),
+                      tooltip: 'Equalizer',
+                    ),
+                    const SizedBox(width: 2),
+                    IconButton(
+                      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                      padding: EdgeInsets.zero,
+                      icon: Icon(
+                        Icons.repeat,
+                        color: _isRepeating ? ThemeColorsUtil.primaryColor : ThemeColorsUtil.textColorSecondary,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        setState(() => _isRepeating = !_isRepeating);
+                        _savePreferences();
+                      },
+                      tooltip: 'Repeat',
+                    ),
+                  ],
+                ),
+              ),
+            ] : [
+              // Desktop: All controls
               IconButton(
                 icon: Icon(
                   Icons.shuffle,
@@ -2421,6 +2758,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                 icon: const Icon(Icons.skip_previous),
                 onPressed: _playPrevious,
                 color: ThemeColorsUtil.textColorPrimary,
+                tooltip: 'Previous',
               ),
               const SizedBox(width: 8),
               Container(
@@ -2443,6 +2781,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                     color: ThemeColorsUtil.scaffoldBackgroundColor,
                   ),
                   onPressed: _togglePlayPause,
+                  tooltip: 'Play/Pause',
                 ),
               ),
               const SizedBox(width: 8),
@@ -2864,6 +3203,54 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
         ),
       ),
     );
+  }
+
+  void _showCreatePlaylistDialog() async {
+    final TextEditingController controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: ThemeColorsUtil.surfaceColor,
+        title: Text(
+          'Create Playlist',
+          style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+        ),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: 'Enter playlist name',
+            hintStyle: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+          ),
+          autofocus: true,
+          style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              final name = controller.text.trim();
+              if (name.isNotEmpty) {
+                Navigator.of(context).pop(name);
+              }
+            },
+            child: Text(
+              'Create',
+              style: TextStyle(color: ThemeColorsUtil.primaryColor),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      await _createPlaylist(result);
+    }
   }
 
   // Playlist Import Dialog
