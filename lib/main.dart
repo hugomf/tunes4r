@@ -6,6 +6,8 @@ import 'package:sqflite/sqflite.dart';
 import 'package:tunes4r/models/song.dart';
 import 'package:tunes4r/services/database_service.dart';
 import 'package:tunes4r/services/file_import_service.dart';
+import 'package:tunes4r/services/library_service.dart';
+import 'package:tunes4r/services/media_control_service.dart';
 import 'package:tunes4r/services/media_service.dart';
 import 'package:tunes4r/services/permission_service.dart';
 import 'package:tunes4r/services/playback_manager.dart';
@@ -67,6 +69,8 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
   late final PlaybackManager _playbackManager;
   late final DatabaseService _databaseService;
   late final FileImportService _fileImportService;
+  late final LibraryService _libraryService;
+  late final MediaControlService _mediaControlService;
   late final MediaService _mediaService;
   late final PermissionService _permissionService;
   SharedPreferences? _prefs;
@@ -75,6 +79,9 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
   List<Song> _favorites = [];
   int _selectedIndex = 0;
 
+  // Cached playlist state to prevent recreating it on every build
+  PlaylistState? _playlistState;
+
 
   @override
   void initState() {
@@ -82,7 +89,8 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     print('Initializing Tunes4R...');
     // Initialize services
     _databaseService = DatabaseService();
-    _fileImportService = FileImportService(_databaseService);
+    _libraryService = LibraryService(_databaseService);
+    _fileImportService = FileImportService(_databaseService, libraryService: _libraryService);
     _mediaService = MediaService();
     _permissionService = PermissionService();
 
@@ -91,14 +99,23 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     _playbackManager.initialize(
       onStateChanged: () {
         if (mounted) setState(() {});
+        // Update media control service when playback state changes
+        _mediaControlService.updatePlaybackState();
       },
       onSongChanged: (song) {
         // Handle song change if needed
+        // Update media control service with new metadata
+        _mediaControlService.updateMetadata();
       },
     );
 
+    // Initialize MediaControlService after PlaybackManager
+    _mediaControlService = MediaControlService(_playbackManager);
+
     _initApp().then((_) {
       print('App initialized successfully');
+      // Initialize playlist state after app is ready
+      _initPlaylistState();
     }).catchError((error) {
       print('Error initializing app: $error');
     });
@@ -109,7 +126,25 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
       await ThemeManager().initialize();
       await _initDatabase();
       await _loadPreferences();
-      await _loadLibrary();
+      await _libraryService.initializeLibrary();
+      // Set up reactive streams
+      _libraryService.libraryStream.listen((library) {
+        if (mounted) {
+          setState(() {
+            _library = library;
+          });
+        }
+      });
+      _libraryService.favoritesStream.listen((favorites) {
+        if (mounted) {
+          setState(() {
+            _favorites = favorites;
+          });
+        }
+      });
+      // Update local state immediately
+      _library = _libraryService.library;
+      _favorites = _libraryService.favorites;
     } catch (e) {
       print('Error in _initApp: $e');
       // Continue with empty data
@@ -135,25 +170,65 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     }
   }
 
-  Future<void> _loadLibrary() async {
+  Future<void> _initPlaylistState() async {
     try {
-      final songs = await _databaseService.loadAllSongs();
-      final favorites = await _databaseService.loadFavorites();
+      print('🔍 _initPlaylistState: Starting initialization...');
+      final db = await _databaseService.database;
+      _playlistState = PlaylistState();
+      _playlistState!.setDatabase(db);
+      _playlistState!.setCallbacks(PlaylistCallbacks(
+        addToPlaylist: (song) => _playbackManager.addToQueue(song),
+        addToPlayNext: (song, showSnackbar) => _playbackManager.addToPlayNext(song),
+        playSong: _playSong,
+        clearQueue: () => _playbackManager.clearQueue(),
+        addSongsToQueue: (songs) => songs.forEach((song) => _playbackManager.addToQueue(song)),
+        showSnackBar: (message) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Container(
+                  decoration: BoxDecoration(
+                    color: ThemeColorsUtil.surfaceColor,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Text(
+                    message,
+                    style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+                  ),
+                ),
+                backgroundColor: Colors.transparent, // Make background transparent so shadow shows
+                elevation: 0, // Remove default elevation
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.all(16),
+              ),
+            );
+          }
+        },
+      ));
+      print('🔍 _initPlaylistState: Loading playlists for ${_library.length} songs...');
+      await _playlistState!.loadUserPlaylists(_library);
+      print('🔍 _initPlaylistState: Loaded ${_playlistState!.userPlaylists.length} playlists');
 
+      // Trigger UI rebuild now that playlist state is ready
       if (mounted) {
-        setState(() {
-          _library = songs;
-          _favorites = favorites;
-        });
+        print('🔍 _initPlaylistState: Triggering UI rebuild');
+        setState(() {});
       }
     } catch (e) {
-      print('Error loading library: $e');
+      print('❌ Error initializing playlist state: $e');
     }
   }
 
-  Future<void> _saveSong(Song song) async {
-    await _databaseService.saveSong(song);
-  }
+
 
   Future<void> _savePreferences() async {
     try {
@@ -170,18 +245,62 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
   Future<void> _pickFiles() async {
     final result = await _fileImportService.importFiles(context);
-
-    // Refresh library if songs were added (result > 0)
-    if (result > 0 && mounted) {
-      await _loadLibrary();
-    }
   }
 
   Future<void> _playSong(Song song) async {
-    _playbackManager.playSong(song);
+    // Determine context based on current tab
+    List<Song>? context;
+    switch (_selectedIndex) {
+      case 0: // Library
+        context = _library.isNotEmpty ? _library : null;
+        break;
+      case 1: // Playlist - use current playlist if not managing playlists
+        if (_playlistState != null &&
+            !_playlistState!.isManagingPlaylists &&
+            _playlistState!.playlist.isNotEmpty) {
+          context = _playlistState!.playlist;
+        } else {
+          context = null;
+        }
+        break;
+      case 4: // Favorites
+        context = _favorites.isNotEmpty ? _favorites : null;
+        break;
+      default:
+        context = null;
+    }
+    _playbackManager.playSong(song, context: context);
   }
 
   Future<void> _togglePlayPause() async {
+    // If we have a current song playing or paused, toggle play/pause
+    if (_playbackManager.currentSong != null) {
+      _playbackManager.togglePlayPause();
+      return;
+    }
+
+    // No current playback - start from current tab's content
+    if (_selectedIndex == 1 &&
+        _playlistState != null &&
+        !_playlistState!.isManagingPlaylists &&
+        _playlistState!.playlist.isNotEmpty) {
+      _playFromIndex(_playlistState!.playlist, 0);
+      return;
+    }
+
+    // If we're on the library tab, start from first song of library
+    if (_selectedIndex == 0 && _library.isNotEmpty) {
+      _playFromIndex(_library, 0);
+      return;
+    }
+
+    // If we're on favorites tab, start from first favorite
+    if (_selectedIndex == 4 && _favorites.isNotEmpty) {
+      _playFromIndex(_favorites, 0);
+      return;
+    }
+
+    // Nothing to play - just toggle (should do nothing)
     _playbackManager.togglePlayPause();
   }
 
@@ -201,20 +320,59 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     _playbackManager.addToPlayNext(song);
   }
 
-  Future<void> _toggleFavorite(Song song) async {
-    final isCurrentlyFavorite = _favorites.contains(song);
+  void _playFromIndex(List<Song> songs, int startIndex) {
+    // Set playlist mode and context for looping
+    _playbackManager.startPlaylistPlayback(songs);
 
-    if (mounted) {
-      setState(() {
-        if (isCurrentlyFavorite) {
-          _favorites.remove(song);
-        } else {
-          _favorites.add(song);
-        }
-      });
+    // Clear the queue and add only songs starting from the selected index
+    _playbackManager.clearQueue();
+    final songsToAdd = songs.sublist(startIndex);
+    for (var song in songsToAdd) {
+      _playbackManager.addToQueue(song);
     }
 
-    await _databaseService.updateFavorite(song.path, !isCurrentlyFavorite);
+    // Start playing the selected song
+    if (songsToAdd.isNotEmpty) {
+      _playbackManager.playSong(songsToAdd.first);
+    }
+  }
+
+  Future<void> _toggleFavorite(Song song) async {
+    await _libraryService.toggleFavorite(song);
+  }
+
+  Future<void> _addSelectedSongsToPlaylist(Set<Song> selectedSongs) async {
+    print('🔍 main.dart _addSelectedSongsToPlaylist: Called with ${selectedSongs.length} songs');
+    if (_playlistState == null || selectedSongs.isEmpty) {
+      print('❌ main.dart _addSelectedSongsToPlaylist: Early return - playlistState: ${_playlistState == null}, songs empty: ${selectedSongs.isEmpty}');
+      return;
+    }
+    print('✅ main.dart _addSelectedSongsToPlaylist: Proceeding to call addSelectedSongsToPlaylist');
+
+    await _playlistState!.addSelectedSongsToPlaylist(
+      selectedSongs,
+      context,
+      _library,
+    );
+
+    // Success - optionally cancel selection mode here if needed
+    // For now, user can manually cancel or the selection stays active
+  }
+
+  Future<void> _removeSong(Song song) async {
+    await _libraryService.removeSong(song);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Removed "${song.title}" from library',
+            style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+          ),
+          backgroundColor: ThemeColorsUtil.surfaceColor,
+        ),
+      );
+    }
   }
 
 
@@ -222,48 +380,39 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
   @override
   void dispose() {
     _playbackManager.dispose();
+    _libraryService.dispose();
     super.dispose();
   }
 
 
 
   Widget _buildPlaylist() {
-    return FutureBuilder<Database?>(
-      future: _databaseService.database,
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          final playlistState = PlaylistState();
-          playlistState.setDatabase(snapshot.data);
-          return PlaylistWidget(
-            playlistState: playlistState,
-            addToPlaylist: (song) => _playbackManager.addToQueue(song),
-            addToPlayNext: (song, showSnackbar) => _playbackManager.addToPlayNext(song),
-            playSong: _playSong,
-            showSnackBar: (message) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    message,
-                    style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
-                  ),
-                  backgroundColor: ThemeColorsUtil.surfaceColor,
-                ),
-              );
-            },
-          );
-        } else if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              'Error loading playlists: ${snapshot.error}',
-              style: TextStyle(color: ThemeColorsUtil.error),
+    // Use cached playlist state if available
+    if (_playlistState != null) {
+      return PlaylistWidget(
+        playlistState: _playlistState!,
+        addToPlaylist: (song) => _playbackManager.addToQueue(song),
+        addToPlayNext: (song, showSnackbar) => _playbackManager.addToPlayNext(song),
+        playSong: _playSong,
+        playFromIndex: _playFromIndex,
+        currentSong: _playbackManager.currentSong,
+        showSnackBar: (message) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                message,
+                style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+              ),
+              backgroundColor: ThemeColorsUtil.surfaceColor,
             ),
           );
-        } else {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
-      },
+        },
+      );
+    }
+
+    // Show loading until playlist state is initialized
+    return const Center(
+      child: CircularProgressIndicator(),
     );
   }
 
@@ -388,7 +537,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
           ),
         ),
       ),
-      drawer: Container(
+      drawer: SizedBox(
         width: isMobile ? 220.0 : null,
         child: Drawer(
           backgroundColor: ThemeColorsUtil.scaffoldBackgroundColor,
@@ -426,7 +575,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Text(
-                          'Simple Mode',
+                          'Made by Silverio/ Qualitas',
                           style: TextStyle(
                             color: ThemeColorsUtil.textColorSecondary,
                             fontSize: 12,
@@ -465,8 +614,11 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                       }
                     },
                     onToggleFavorite: _toggleFavorite,
+                    onRemoveSong: _removeSong,
                     onPickFiles: _pickFiles,
                     onClearLibrary: _clearLibrary,
+                    onSongsSelected: _addSelectedSongsToPlaylist,
+                    currentSong: _playbackManager.currentSong,
                   )
                 : _selectedIndex == 1
                     ? _buildPlaylist()
@@ -501,6 +653,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
           MusicPlayerControls(
             playbackManager: _playbackManager,
             onSavePreferences: _savePreferences,
+            onTogglePlayPause: _togglePlayPause,
           ),
         ],
       ),
@@ -549,8 +702,6 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
   String _getShortLabel(String label) {
     switch (label) {
-      case 'Playlist':
-        return 'List';
       case 'Now Playing':
         return 'Playing';
       case 'Favorites':
@@ -573,10 +724,12 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
           'Clear Library',
           style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
         ),
-        content: Text(
-          'Are you sure you want to delete all songs from your library?\n\n'
-          'This action cannot be undone.',
-          style: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+        content: SingleChildScrollView(
+          child: Text(
+            'Are you sure you want to delete all songs from your library?\n\n'
+            'This action cannot be undone.',
+            style: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+          ),
         ),
         actions: [
           TextButton(
@@ -595,18 +748,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
     if (result == true) {
       try {
-        // Clear database
-        await _databaseService.clearLibrary();
-
-        // Clear in-memory data
-        if (mounted) {
-          setState(() {
-            _library.clear();
-            _favorites.clear();
-          });
-        }
-
-        print('🧹 Library cleared successfully');
+        await _libraryService.clearLibrary();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(

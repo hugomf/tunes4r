@@ -26,7 +26,7 @@ class MusicPlayerWidget extends StatelessWidget {
   final SeekCallback onSeek;
 
   const MusicPlayerWidget({
-    Key? key,
+    super.key,
     required this.isMobile,
     required this.isPlaying,
     required this.isShuffling,
@@ -40,7 +40,7 @@ class MusicPlayerWidget extends StatelessWidget {
     required this.onShuffleToggle,
     required this.onRepeatToggle,
     required this.onSeek,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

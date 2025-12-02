@@ -1,23 +1,23 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 
 import 'package:tunes4r/models/song.dart';
 import 'package:tunes4r/services/database_service.dart';
+import 'package:tunes4r/services/library_service.dart';
 import 'package:tunes4r/utils/theme_colors.dart';
 
 class FileImportService {
   final DatabaseService _databaseService;
+  final LibraryService _libraryService;
 
-  FileImportService(this._databaseService);
+  FileImportService(this._databaseService, {LibraryService? libraryService})
+      : _libraryService = libraryService ?? LibraryService(_databaseService);
 
   /// Main entry point for file import process
   /// Returns the number of songs added, or -1 if cancelled
@@ -258,9 +258,9 @@ class FileImportService {
     // Process all audio files
     final newSongs = await _processAudioFiles(filePaths);
 
-    // Save to database
+    // Save to database via library service
     for (var song in newSongs) {
-      await _databaseService.saveSong(song);
+      await _libraryService.saveSong(song);
     }
 
     print('Added ${newSongs.length} songs to library');

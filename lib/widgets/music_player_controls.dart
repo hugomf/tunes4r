@@ -7,12 +7,14 @@ class MusicPlayerControls extends StatefulWidget {
   final PlaybackManager playbackManager;
   final VoidCallback onSavePreferences;
   final Function()? onShowEqualizerDialog;
+  final VoidCallback? onTogglePlayPause;
 
   const MusicPlayerControls({
     super.key,
     required this.playbackManager,
     required this.onSavePreferences,
     this.onShowEqualizerDialog,
+    this.onTogglePlayPause,
   });
 
   @override
@@ -67,8 +69,10 @@ class _MusicPlayerControlsState extends State<MusicPlayerControls> {
               ),
               Expanded(
                 child: Slider(
-                  value: widget.playbackManager.position.inSeconds.toDouble(),
-                  max: widget.playbackManager.duration.inSeconds.toDouble(),
+                  value: widget.playbackManager.position.inSeconds.toDouble().clamp(0.0, double.maxFinite),
+                  max: (widget.playbackManager.position.inSeconds > widget.playbackManager.duration.inSeconds
+                       ? widget.playbackManager.position.inSeconds
+                       : widget.playbackManager.duration.inSeconds).toDouble().clamp(1.0, double.maxFinite),
                   activeColor: ThemeColorsUtil.seekBarActiveColor,
                   inactiveColor: ThemeColorsUtil.seekBarInactiveColor,
                   onChanged: (value) async {
@@ -137,7 +141,7 @@ class _MusicPlayerControlsState extends State<MusicPlayerControls> {
                           widget.playbackManager.isPlaying ? Icons.pause : Icons.play_arrow,
                           color: ThemeColorsUtil.scaffoldBackgroundColor,
                         ),
-                        onPressed: widget.playbackManager.togglePlayPause,
+                        onPressed: widget.onTogglePlayPause ?? widget.playbackManager.togglePlayPause,
                         tooltip: 'Play/Pause',
                       ),
                     ),
@@ -219,7 +223,7 @@ class _MusicPlayerControlsState extends State<MusicPlayerControls> {
                     widget.playbackManager.isPlaying ? Icons.pause : Icons.play_arrow,
                     color: ThemeColorsUtil.scaffoldBackgroundColor,
                   ),
-                  onPressed: widget.playbackManager.togglePlayPause,
+                  onPressed: widget.onTogglePlayPause ?? widget.playbackManager.togglePlayPause,
                   tooltip: 'Play/Pause',
                 ),
               ),

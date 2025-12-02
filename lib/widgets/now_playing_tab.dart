@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../models/song.dart';
 import '../services/playback_manager.dart';
 import '../utils/theme_colors.dart';
 

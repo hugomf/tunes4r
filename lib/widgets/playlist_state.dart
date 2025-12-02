@@ -13,12 +13,16 @@ class PlaylistCallbacks {
   final Function(Song song, bool showSnackbar) addToPlayNext;
   final Function(Song song) playSong;
   final Function(String name) showSnackBar;
+  final Function() clearQueue;
+  final Function(List<Song> songs) addSongsToQueue;
 
   PlaylistCallbacks({
     required this.addToPlaylist,
     required this.addToPlayNext,
     required this.playSong,
     required this.showSnackBar,
+    required this.clearQueue,
+    required this.addSongsToQueue,
   });
 }
 
@@ -161,11 +165,23 @@ class PlaylistState extends ChangeNotifier {
     }
   }
 
-  Future<void> loadPlaylist(Playlist playlist) async {
+  Future<void> loadPlaylist(Playlist playlist, {bool autoPlay = false}) async {
     _currentPlaylistSongs = List.from(playlist.songs);
     _currentPlaylist = playlist;
+
+    // Setup playlist for sequential playback
+    if (_callbacks != null) {
+      // Clear current queue and add all playlist songs
+      _callbacks!.clearQueue();
+      _callbacks!.addSongsToQueue(_currentPlaylistSongs);
+
+      // Optionally start playing the first song
+      if (autoPlay && _currentPlaylistSongs.isNotEmpty) {
+        _callbacks!.playSong(_currentPlaylistSongs.first);
+      }
+    }
+
     await _savePlaylist();
-    // Note: playing song logic stays in main state
     notifyListeners();
   }
 
@@ -192,9 +208,11 @@ class PlaylistState extends ChangeNotifier {
           'Delete Playlist',
           style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
         ),
-        content: Text(
-          'Are you sure you want to delete "${playlist.name}"?\n\nThis action cannot be undone.',
-          style: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+        content: SingleChildScrollView(
+          child: Text(
+            'Are you sure you want to delete "${playlist.name.length > 30 ? "${playlist.name.substring(0, 27)}..." : playlist.name}"?\n\nThis action cannot be undone.',
+            style: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+          ),
         ),
         actions: [
           TextButton(
@@ -264,14 +282,27 @@ class PlaylistState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearCurrentPlaylist() {
+    _currentPlaylistSongs.clear();
+    if (_database != null && _currentPlaylist != null) {
+      _savePlaylist();
+    }
+    _currentPlaylist = null;
+    notifyListeners();
+  }
+
   // Bulk operations
   Future<void> addSelectedSongsToPlaylist(
     Set<Song> selectedSongs,
     BuildContext context,
     List<Song> library,
   ) async {
+    print('🔍 addSelectedSongsToPlaylist: Method called with ${selectedSongs.length} songs');
     if (selectedSongs.isEmpty || _userPlaylists.isEmpty || _repository == null) {
       print('❌ No songs selected, no playlists available, or repository not initialized');
+      print('   - selectedSongs.isEmpty: ${selectedSongs.isEmpty}');
+      print('   - _userPlaylists.isEmpty: ${_userPlaylists.isEmpty}');
+      print('   - _repository == null: ${_repository == null}');
       return;
     }
 
@@ -347,20 +378,25 @@ class PlaylistState extends ChangeNotifier {
 
     if (selectedPlaylist == null || selectedPlaylist.id == null) {
       print('❌ User cancelled playlist selection or playlist has no ID');
+      print('   - selectedPlaylist == null: ${selectedPlaylist == null}');
+      print('   - selectedPlaylist.id == null: ${selectedPlaylist?.id == null}');
       return;
     }
 
-    print('🎵 Starting bulk add of ${selectedSongs.length} songs to "${selectedPlaylist.name}"...');
+    print('🎵 Starting bulk add of ${selectedSongs.length} songs to "${selectedPlaylist.name}" (ID: ${selectedPlaylist.id})...');
 
     try {
       // Use repository's bulk method for all database operations
+      print('🔧 Calling addSongsToPlaylistBulk...');
       await _repository!.addSongsToPlaylistBulk(selectedPlaylist.id!, selectedSongs.toList());
+      print('🔧 Bulk add completed, reloading playlists...');
 
       // Reload playlists to get updated state (simpler than manual state management)
       await loadUserPlaylists(library);
+      print('🔧 Playlists reloaded, showing success message');
 
       print('🎵 Bulk add completed successfully');
-      _callbacks?.showSnackBar('Added songs to "${selectedPlaylist.name}"!');
+      _callbacks?.showSnackBar('Added ${selectedSongs.length} ${selectedSongs.length == 1 ? 'song' : 'songs'} to "${selectedPlaylist.name}"!');
 
     } catch (e) {
       print('  ❌ Error during bulk add: $e');

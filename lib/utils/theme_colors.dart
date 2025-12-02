@@ -39,6 +39,18 @@ class ThemeColorsUtil {
     return ThemeManager().getCurrentColors()?.appBarBackground ?? const Color(0xFFEBDBB2);
   }
 
+  static Color get iconPrimary {
+    return ThemeManager().getCurrentColors()?.iconPrimary ?? const Color(0xFFFFFFFF);
+  }
+
+  static Color get iconSecondary {
+    return ThemeManager().getCurrentColors()?.iconSecondary ?? const Color(0xFFFFFFFF);
+  }
+
+  static Color get iconDisabled {
+    return ThemeManager().getCurrentColors()?.iconDisabled ?? const Color(0xFF7C6F64);
+  }
+
   static Color get seekBarActiveColor {
     return ThemeManager().getCurrentColors()?.seekBarActive ?? const Color(0xFFB57614);
   }

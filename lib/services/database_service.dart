@@ -92,7 +92,7 @@ class DatabaseService {
         'path': song.path,
         'duration': song.duration?.inMilliseconds ?? 0,
         'is_favorite': 0, // Will be updated by toggleFavorite
-        'album_art': song.albumArt?.toList(),
+        'album_art': song.albumArt,
         'track_number': song.trackNumber,
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
@@ -142,6 +142,15 @@ class DatabaseService {
     await db.update(
       'songs',
       {'is_favorite': isFavorite ? 1 : 0},
+      where: 'path = ?',
+      whereArgs: [path],
+    );
+  }
+
+  Future<void> deleteSong(String path) async {
+    final db = await database;
+    await db.delete(
+      'songs',
       where: 'path = ?',
       whereArgs: [path],
     );
