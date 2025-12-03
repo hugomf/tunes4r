@@ -51,7 +51,7 @@ public class MainActivity extends FlutterActivity {
         audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         initializeAudioFocusListener();
         initializeMediaSession();
-        
+
         // Handle media button intent if launched by it
         handleIntent(getIntent());
     }
@@ -64,15 +64,16 @@ public class MainActivity extends FlutterActivity {
     }
 
     private void handleIntent(Intent intent) {
-        if (intent == null) return;
-        
+        if (intent == null)
+            return;
+
         Log.d(TAG, "🔍 handleIntent - Action: " + intent.getAction());
-        
+
         if (Intent.ACTION_MEDIA_BUTTON.equals(intent.getAction())) {
             KeyEvent event = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
             if (event != null && event.getAction() == KeyEvent.ACTION_DOWN) {
                 Log.d(TAG, "🎯 Media button intent - KeyCode: " + event.getKeyCode());
-                
+
                 switch (event.getKeyCode()) {
                     case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
                     case KeyEvent.KEYCODE_HEADSETHOOK:
@@ -160,61 +161,56 @@ public class MainActivity extends FlutterActivity {
 
         // CRITICAL: Set flags to handle media buttons and transport controls
         mediaSession.setFlags(
-            MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
-            MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
-        );
+                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
+                        MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
 
         // Create PendingIntent for media button receiver
         Intent mediaButtonIntent = new Intent(Intent.ACTION_MEDIA_BUTTON);
         mediaButtonIntent.setClass(this, MediaButtonReceiver.class);
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
-            this,
-            0,
-            mediaButtonIntent,
-            PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
-        );
+                this,
+                0,
+                mediaButtonIntent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         mediaSession.setMediaButtonReceiver(pendingIntent);
 
         // Set initial playback state BEFORE activating
         updatePlaybackStateInternal(PlaybackStateCompat.STATE_STOPPED);
 
-        // Request audio focus when actually needed (during playback)
-        // requestAudioFocus(); // Removed - focus acquired during actual playback
-        
         // Register MediaBrowserService
         TunesMediaBrowserService.setMediaSession(mediaSession);
 
         // NOW activate the session
         mediaSession.setActive(true);
-        Log.d(TAG, "✅ MediaSession activated with audio focus");
+        Log.d(TAG, "✅ MediaSession activated");
 
         // Set the callback to handle media controls
         mediaSession.setCallback(new MediaSessionCompat.Callback() {
             @Override
             public boolean onMediaButtonEvent(Intent mediaButtonIntent) {
                 Log.d(TAG, "🎯 === onMediaButtonEvent CALLED ===");
-                
+
                 if (mediaButtonIntent == null) {
                     Log.e(TAG, "❌ mediaButtonIntent is null");
                     return super.onMediaButtonEvent(mediaButtonIntent);
                 }
-                
+
                 KeyEvent event = mediaButtonIntent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
-                
+
                 if (event == null) {
                     Log.e(TAG, "❌ KeyEvent is null");
                     return super.onMediaButtonEvent(mediaButtonIntent);
                 }
-                
-                Log.d(TAG, "🔑 KeyEvent - Action: " + event.getAction() + 
-                           ", KeyCode: " + event.getKeyCode() + 
-                           ", RepeatCount: " + event.getRepeatCount());
-                
+
+                Log.d(TAG, "🔑 KeyEvent - Action: " + event.getAction() +
+                        ", KeyCode: " + event.getKeyCode() +
+                        ", RepeatCount: " + event.getRepeatCount());
+
                 if (event.getAction() != KeyEvent.ACTION_DOWN) {
                     Log.d(TAG, "⏭️ Ignoring non-ACTION_DOWN event");
                     return super.onMediaButtonEvent(mediaButtonIntent);
                 }
-                
+
                 if (event.getRepeatCount() > 0) {
                     Log.d(TAG, "🔁 Ignoring repeat event");
                     return super.onMediaButtonEvent(mediaButtonIntent);
@@ -294,12 +290,11 @@ public class MainActivity extends FlutterActivity {
         PlaybackStateCompat.Builder builder = new PlaybackStateCompat.Builder()
                 .setActions(
                         PlaybackStateCompat.ACTION_PLAY |
-                        PlaybackStateCompat.ACTION_PAUSE |
-                        PlaybackStateCompat.ACTION_PLAY_PAUSE |
-                        PlaybackStateCompat.ACTION_SKIP_TO_NEXT |
-                        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS |
-                        PlaybackStateCompat.ACTION_STOP
-                )
+                                PlaybackStateCompat.ACTION_PAUSE |
+                                PlaybackStateCompat.ACTION_PLAY_PAUSE |
+                                PlaybackStateCompat.ACTION_SKIP_TO_NEXT |
+                                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS |
+                                PlaybackStateCompat.ACTION_STOP)
                 .setState(state, currentPosition, 1.0f, SystemClock.elapsedRealtime());
 
         mediaSession.setPlaybackState(builder.build());
@@ -360,36 +355,36 @@ public class MainActivity extends FlutterActivity {
             Log.e(TAG, "❌ Invalid metadata format");
             return;
         }
-        
+
         @SuppressWarnings("unchecked")
         java.util.Map<String, Object> map = (java.util.Map<String, Object>) args;
-        
+
         MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder();
-        
+
         String title = map.containsKey("title") ? (String) map.get("title") : "";
         String artist = map.containsKey("artist") ? (String) map.get("artist") : "";
         String album = map.containsKey("album") ? (String) map.get("album") : "";
-        
+
         builder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, title);
         builder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist);
         builder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album);
-        
+
         if (map.containsKey("duration") && map.get("duration") instanceof Long) {
             builder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, (Long) map.get("duration"));
         }
-        
+
         if (map.containsKey("artUri") && map.get("artUri") instanceof String) {
             builder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, (String) map.get("artUri"));
         }
-        
+
         mediaSession.setMetadata(builder.build());
         Log.d(TAG, "🎼 Metadata updated - Title: " + title + ", Artist: " + artist);
     }
 
     private void updatePosition(long position) {
         currentPosition = position;
-        if (mediaSession != null && mediaSession.getController() != null 
-            && mediaSession.getController().getPlaybackState() != null) {
+        if (mediaSession != null && mediaSession.getController() != null
+                && mediaSession.getController().getPlaybackState() != null) {
             int currentState = mediaSession.getController().getPlaybackState().getState();
             updatePlaybackStateInternal(currentState);
         }
@@ -401,22 +396,23 @@ public class MainActivity extends FlutterActivity {
             Log.d(TAG, "✅ Already has audio focus");
             return;
         }
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             AudioAttributes attrs = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build();
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build();
             audioFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(attrs)
-                .setOnAudioFocusChangeListener(afChangeListener)
-                .build();
+                    .setAudioAttributes(attrs)
+                    .setOnAudioFocusChangeListener(afChangeListener)
+                    .build();
             int result = audioManager.requestAudioFocus(audioFocusRequest);
             hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
             Log.d(TAG, "🔊 Audio focus request result: " + (hasAudioFocus ? "GRANTED" : "DENIED"));
         } else {
             @SuppressWarnings("deprecation")
-            int result = audioManager.requestAudioFocus(afChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+            int result = audioManager.requestAudioFocus(afChangeListener, AudioManager.STREAM_MUSIC,
+                    AudioManager.AUDIOFOCUS_GAIN);
             hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
             Log.d(TAG, "🔊 Audio focus request result: " + (hasAudioFocus ? "GRANTED" : "DENIED"));
         }
@@ -427,7 +423,7 @@ public class MainActivity extends FlutterActivity {
             Log.d(TAG, "⚠️ No audio focus to abandon");
             return;
         }
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && audioFocusRequest != null) {
             audioManager.abandonAudioFocusRequest(audioFocusRequest);
         } else {
@@ -441,7 +437,7 @@ public class MainActivity extends FlutterActivity {
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);
         Log.d(TAG, "🔧 Configuring Flutter engine");
-        
+
         methodChannel = new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), CHANNEL);
         methodChannel.setMethodCallHandler((call, result) -> {
             try {
@@ -490,6 +486,14 @@ public class MainActivity extends FlutterActivity {
                         resetEqualizer();
                         result.success(null);
                         break;
+                    case "enableEqualizer":
+                        enableEqualizer();
+                        result.success(null);
+                        break;
+                    case "disableEqualizer":
+                        disableEqualizer();
+                        result.success(null);
+                        break;
                     case "setAudioSessionId":
                         Integer sessionId = call.argument("sessionId");
                         if (sessionId != null) {
@@ -534,7 +538,7 @@ public class MainActivity extends FlutterActivity {
                 equalizer.release();
             }
             equalizer = new Equalizer(0, 0); // Use global session
-            equalizer.setEnabled(true);
+            equalizer.setEnabled(false); // Start disabled
             Log.d(TAG, "🎛️ Equalizer initialized successfully");
         } catch (Exception e) {
             Log.e(TAG, "Failed to initialize equalizer", e);
@@ -548,11 +552,31 @@ public class MainActivity extends FlutterActivity {
                 return;
             }
             short numberOfBands = equalizer.getNumberOfBands();
+            short[] bandLevelRange = equalizer.getBandLevelRange();
+
             for (short i = 0; i < numberOfBands && i < bands.size(); i++) {
-                short gain = (short) (bands.get(i) * 100); // Scale to millibels
-                equalizer.setBandLevel(i, gain);
+                // Convert from dB to millibels
+                short targetGain = (short) (bands.get(i) * 100);
+                targetGain = (short) Math.max(bandLevelRange[0], Math.min(bandLevelRange[1], targetGain));
+
+                // SMOOTH RAMPING: Gradually move to target to avoid clicks
+                short currentGain = equalizer.getBandLevel(i);
+                short difference = (short) (targetGain - currentGain);
+
+                // If change is large (>300 millibels = 3dB), ramp it
+                if (Math.abs(difference) > 300) {
+                    // Apply 70% of the change (smooth transition)
+                    short smoothGain = (short) (currentGain + difference * 0.7);
+                    equalizer.setBandLevel(i, smoothGain);
+                } else {
+                    // Small changes can be applied directly
+                    equalizer.setBandLevel(i, targetGain);
+                }
+
+                int centerFreq = equalizer.getCenterFreq(i) / 1000;
+                Log.d(TAG, "   Band " + i + " (" + centerFreq + "Hz): " + bands.get(i) + "dB");
             }
-            Log.d(TAG, "🎛️ Equalizer bands applied: " + bands);
+            Log.d(TAG, "🎛️ Equalizer bands applied with smoothing");
         } catch (Exception e) {
             Log.e(TAG, "Failed to apply equalizer bands", e);
         }
@@ -573,14 +597,57 @@ public class MainActivity extends FlutterActivity {
         }
     }
 
-    private void setAudioSessionId(int sessionId) {
+    private void enableEqualizer() {
         try {
             if (equalizer != null) {
+                equalizer.setEnabled(true);
+                Log.d(TAG, "🎛️ Equalizer ENABLED");
+            } else {
+                Log.w(TAG, "⚠️ Equalizer is null, cannot enable");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to enable equalizer", e);
+        }
+    }
+
+    private void disableEqualizer() {
+        try {
+            if (equalizer != null) {
+                equalizer.setEnabled(false);
+                Log.d(TAG, "🎛️ Equalizer DISABLED");
+            } else {
+                Log.w(TAG, "⚠️ Equalizer is null, cannot disable");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to disable equalizer", e);
+        }
+    }
+
+    private void setAudioSessionId(int sessionId) {
+        try {
+            boolean wasEnabled = false;
+            List<Double> savedBands = new ArrayList<>();
+
+            // Save current state if equalizer exists
+            if (equalizer != null) {
+                wasEnabled = equalizer.getEnabled();
+                short numberOfBands = equalizer.getNumberOfBands();
+                for (short i = 0; i < numberOfBands; i++) {
+                    savedBands.add((double) equalizer.getBandLevel(i) / 100.0);
+                }
                 equalizer.release();
             }
+
+            // Create new equalizer with the audio session
             equalizer = new Equalizer(0, sessionId);
-            equalizer.setEnabled(true);
-            Log.d(TAG, "🎛️ Equalizer initialized with session ID: " + sessionId);
+            equalizer.setEnabled(wasEnabled);
+
+            // Restore band levels if we had any
+            if (!savedBands.isEmpty()) {
+                applyEqualizer(savedBands);
+            }
+
+            Log.d(TAG, "🎛️ Equalizer initialized with session ID: " + sessionId + ", enabled: " + wasEnabled);
         } catch (Exception e) {
             Log.e(TAG, "Failed to set audio session ID", e);
         }

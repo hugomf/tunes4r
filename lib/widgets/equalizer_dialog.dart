@@ -28,6 +28,9 @@ class _EqualizerDialogState extends State<EqualizerDialog>
   late bool _isEnabled;
   String? _selectedPreset;
 
+  DateTime _lastUpdateTime = DateTime.now();
+  static const _updateThrottleMs = 30; // Update every 30ms max
+
   late List<AnimationController> _controllers;
   late List<Animation<double>> _animations;
   late List<SpringSimulation> _springSimulations;
@@ -100,16 +103,20 @@ class _EqualizerDialogState extends State<EqualizerDialog>
 
     // Update animation
     _animations[index] = tween;
-    _bands[index] = newValue; // Update actual value
+    _bands[index] = newValue;
 
     // Start animation
     _controllers[index].forward(from: 0.0);
 
-    // REAL-TIME UPDATE: Apply EQ changes immediately as slider moves
+    // THROTTLED REAL-TIME UPDATE: Only update if enough time has passed
+    final now = DateTime.now();
     if (_isEnabled && widget.equalizerService != null) {
-      widget.equalizerService!.setBandsRealtime(
-        _bands.map(_sliderToDb).toList(),
-      );
+      if (now.difference(_lastUpdateTime).inMilliseconds > _updateThrottleMs) {
+        _lastUpdateTime = now;
+        widget.equalizerService!.setBandsRealtime(
+          _bands.map(_sliderToDb).toList(),
+        );
+      }
     }
   }
 
@@ -310,11 +317,19 @@ class _EqualizerDialogState extends State<EqualizerDialog>
               onPressed: () {
                 // Save the final values when Apply is pressed
                 if (widget.equalizerService != null) {
-                  widget.equalizerService!.setBands(_bands.map(_sliderToDb).toList());
+                  widget.equalizerService!.setBands(
+                    _bands.map(_sliderToDb).toList(),
+                  );
                 }
-                Navigator.pop(context, {'bands': _bands.map(_sliderToDb).toList(), 'enabled': _isEnabled});
+                Navigator.pop(context, {
+                  'bands': _bands.map(_sliderToDb).toList(),
+                  'enabled': _isEnabled,
+                });
               },
-              child: Text('Apply', style: TextStyle(color: ThemeColorsUtil.secondary))
+              child: Text(
+                'Apply',
+                style: TextStyle(color: ThemeColorsUtil.secondary),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),

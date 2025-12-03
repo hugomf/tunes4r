@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,6 +8,7 @@ import '../services/playback_manager.dart';
 /// Service for managing audio equalization
 class AudioEqualizerService {
   final PlaybackManager playbackManager;
+   Timer? _debounceTimer;
 
   AudioEqualizerService(this.playbackManager);
 
@@ -91,13 +93,26 @@ class AudioEqualizerService {
     }
   }
 
+  // Future<void> setBandsRealtime(List<double> newBands) async {
+  //   _bands = List<double>.from(newBands);
+  //   _currentPreset = 'Custom';
+  //   // Apply immediately but don't save to preferences
+  //   if (_isEnabled) {
+  //     await playbackManager.applyEqualizerBands(_bands);
+  //   }
+  // }
+
   Future<void> setBandsRealtime(List<double> newBands) async {
     _bands = List<double>.from(newBands);
     _currentPreset = 'Custom';
-    // Apply immediately but don't save to preferences
-    if (_isEnabled) {
-      await playbackManager.applyEqualizerBands(_bands);
-    }
+    
+    // Debounce: Only apply after user stops dragging for 50ms
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 50), () async {
+      if (_isEnabled) {
+        await playbackManager.applyEqualizerBands(_bands);
+      }
+    });
   }
 
   /// Set band gains (expects 10 bands from UI)

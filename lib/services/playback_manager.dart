@@ -177,24 +177,36 @@ class PlaybackManager {
     }
   }
 
-  Future<void> _standardPlaySong(Song song) async {
-    // Create audio source
-    final audioSource = AudioSource.uri(Uri.file(song.path));
-    await _audioPlayer.setAudioSource(audioSource);
+Future<void> _standardPlaySong(Song song) async {
+  // Create audio source
+  final audioSource = AudioSource.uri(Uri.file(song.path));
+  await _audioPlayer.setAudioSource(audioSource);
 
-      if (Platform.isAndroid) {
-        // Android equalizer initialization if needed
-        try {
-          await _equalizerChannel.invokeMethod('initializeEqualizer');
-          print('🎛️ Android equalizer initialized');
-        } catch (e) {
-          print('Error initializing Android equalizer: $e');
+  if (Platform.isAndroid) {
+    try {
+      // CRITICAL: Get just_audio's audio session ID and attach equalizer to it
+      final audioSessionId = _audioPlayer.androidAudioSessionId;
+      if (audioSessionId != null) {
+        await _equalizerChannel.invokeMethod('setAudioSessionId', {'sessionId': audioSessionId});
+        print('🎛️ Android equalizer attached to session: $audioSessionId');
+        
+        // Re-apply current equalizer state after attaching
+        if (_isEqualizerEnabled) {
+          await _equalizerChannel.invokeMethod('enableEqualizer');
+          await _equalizerChannel.invokeMethod('applyEqualizer', {'bands': _equalizerBands});
+          print('🎛️ Android equalizer state restored');
         }
+      } else {
+        print('⚠️ Android audio session ID is null');
       }
-
-    await _audioPlayer.play();
-    print('✅ PlaybackManager: Song started successfully via just_audio');
+    } catch (e) {
+      print('Error setting up Android equalizer: $e');
+    }
   }
+
+  await _audioPlayer.play();
+  print('✅ PlaybackManager: Song started successfully via just_audio');
+}
 
   Future<void> _macOSPlaySong(Song song) async {
     // Use native macOS AVAudioEngine via method channel
