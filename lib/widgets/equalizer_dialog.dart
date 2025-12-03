@@ -150,8 +150,8 @@ class _EqualizerDialogState extends State<EqualizerDialog> with TickerProviderSt
               Icon(_isEnabled ? Icons.equalizer : Icons.equalizer_outlined,
                   color: _isEnabled ? ThemeColorsUtil.primaryColor : ThemeColorsUtil.textColorSecondary),
               const SizedBox(width: 8),
-              Text('Equalizer ${_isEnabled ? 'Enabled' : 'Disabled'}',
-                  style: TextStyle(color: _isEnabled ? ThemeColorsUtil.primaryColor : ThemeColorsUtil.textColorSecondary, fontWeight: FontWeight.bold)),
+              Text(_isEnabled ? 'ON' : 'OFF',
+                  style: TextStyle(color: _isEnabled ? ThemeColorsUtil.primaryColor : ThemeColorsUtil.textColorSecondary, fontWeight: FontWeight.bold, fontSize: 14)),
             ],
           ),
           Switch(value: _isEnabled, onChanged: (v) => setState(() => _isEnabled = v), activeColor: ThemeColorsUtil.primaryColor),
@@ -213,8 +213,13 @@ class _EqualizerDialogState extends State<EqualizerDialog> with TickerProviderSt
         child: LayoutBuilder(
           builder: (context, constraints) {
             final height = constraints.maxHeight;
-            final centerY = height / 2;
-            final sliderTravelHeight = height - 80; // Exact visual range the thumb travels (tuned for your design)
+            // Account for text labels below sliders - hide labels on small screens for better alignment
+            final hideLabels = height < 500;
+            final sliderHeight = hideLabels ? height : height - 40.0; // More generous text space deduction
+            // Center curve with empirical adjustment for slider positioning45
+            final centerY = hideLabels ? height / 2 : sliderHeight * 0.60; // Adjusted center positioning
+            // Travel height with more conservative scaling
+            final sliderTravelHeight = hideLabels ? height * 0.9 : sliderHeight * 0.40;
 
             return Stack(
               children: [
@@ -222,16 +227,23 @@ class _EqualizerDialogState extends State<EqualizerDialog> with TickerProviderSt
                 AnimatedBuilder(
                   animation: Listenable.merge(_controllers),
                   builder: (context, child) {
+                    // Calculate slider width to match the actual sliders
+                    final double sliderWidth = (constraints.maxWidth / 10).clamp(20.0, 40.0);
                     return CustomPaint(
                       size: Size(constraints.maxWidth, height),
-                      painter: EqualizerCurvePainter(bands: _animatedBands, centerY: centerY, travelHeight: sliderTravelHeight),
+                      painter: EqualizerCurvePainter(
+                        bands: _animatedBands,
+                        centerY: centerY,
+                        travelHeight: sliderTravelHeight,
+                        sliderWidth: sliderWidth,
+                      ),
                     );
                   },
                 ),
                 // Sliders
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(10, (i) => _buildSlider(i, height)),
+                  children: List.generate(10, (i) => _buildSlider(i, height, constraints.maxWidth)),
                 ),
               ],
             );
@@ -241,50 +253,51 @@ class _EqualizerDialogState extends State<EqualizerDialog> with TickerProviderSt
     );
   }
 
-  Widget _buildSlider(int index, double height) {
+  Widget _buildSlider(int index, double height, double availableWidth) {
     const labels = ['32Hz', '64Hz', '125Hz', '250Hz', '500Hz', '1kHz', '2kHz', '4kHz', '8kHz', '16kHz'];
 
+    // Dynamically calculate slider width based on available space (with minimum width)
+    final double sliderWidth = (availableWidth / 10).clamp(20.0, 40.0);
+
+    // Make thumb radius smaller on mobile devices
+    final bool isMobile = MediaQuery.of(context).size.width < 600;
+    final double thumbRadius = isMobile ? 6.0 : 9.0;
+
+    // Hide labels on small screens to allow better curve-slider alignment
+    final bool showLabels = MediaQuery.of(context).size.width >= 600;
+
     return SizedBox(
-      width: 50,
+      width: sliderWidth,
       child: Column(
         children: [
           Expanded(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Dotted reference lines
-                CustomPaint(
-                  size: const Size(50, double.infinity),
-                  painter: _DottedLinesPainter(),
+            child: RotatedBox(
+              quarterTurns: 3,
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 3.0,
+                  thumbShape: RoundSliderThumbShape(enabledThumbRadius: thumbRadius),
+                  activeTrackColor: Colors.transparent,
+                  inactiveTrackColor: ThemeColorsUtil.surfaceColor.withOpacity(0.5),
+                  thumbColor: ThemeColorsUtil.primaryColor,
+                  overlayColor: ThemeColorsUtil.primaryColor.withOpacity(0.2),
                 ),
-                // Slider
-                RotatedBox(
-                  quarterTurns: 3,
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 3.0,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9.0),
-                      activeTrackColor: Colors.transparent,
-                      inactiveTrackColor: ThemeColorsUtil.surfaceColor.withOpacity(0.5),
-                      thumbColor: ThemeColorsUtil.primaryColor,
-                      overlayColor: ThemeColorsUtil.primaryColor.withOpacity(0.2),
-                    ),
-                    child: Slider(
-                      value: _bands[index],
-                      min: 0.0,
-                      max: 1.0,
-                      divisions: eqDivisions,
-                      onChanged: _isEnabled
-                          ? (v) => _updateBandWithSpring(index, v)
-                          : null,
-                    ),
-                  ),
+                child: Slider(
+                  value: _bands[index],
+                  min: 0.0,
+                  max: 1.0,
+                  divisions: eqDivisions,
+                  onChanged: _isEnabled
+                      ? (v) => _updateBandWithSpring(index, v)
+                      : null,
                 ),
-              ],
+              ),
             ),
           ),
-          Text(labels[index], style: TextStyle(color: ThemeColorsUtil.textColorSecondary, fontSize: 10, fontWeight: FontWeight.bold)),
-          Text('${_sliderToDb(_bands[index]).toStringAsFixed(1)}dB', style: TextStyle(color: ThemeColorsUtil.textColorPrimary, fontSize: 9)),
+          if (showLabels) ...[
+            Text(labels[index], style: TextStyle(color: ThemeColorsUtil.textColorSecondary, fontSize: 10, fontWeight: FontWeight.bold)),
+            Text('${_sliderToDb(_bands[index]).toStringAsFixed(1)}dB', style: TextStyle(color: ThemeColorsUtil.textColorPrimary, fontSize: 9)),
+          ],
         ],
       ),
     );
@@ -313,8 +326,14 @@ class EqualizerCurvePainter extends CustomPainter {
   final List<double> bands;
   final double centerY;
   final double travelHeight;
+  final double sliderWidth;
 
-  EqualizerCurvePainter({required this.bands, required this.centerY, required this.travelHeight});
+  EqualizerCurvePainter({
+    required this.bands,
+    required this.centerY,
+    required this.travelHeight,
+    required this.sliderWidth,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -324,12 +343,13 @@ class EqualizerCurvePainter extends CustomPainter {
 
     final points = <Offset>[];
     // Calculate exact slider positions matching Row with MainAxisAlignment.spaceEvenly
-    // 10 sliders, each 50px wide
-    const sliderWidth = 50.0;
+    // Dynamic slider width based on available space
     final numItems = bands.length;
     final availableWidth = w;
     final totalSpacing = availableWidth - (sliderWidth * numItems);
     final spacing = totalSpacing / (numItems + 1);
+
+
 
     for (int i = 0; i < bands.length; i++) {
       // Perfectly center the curve on slider thumb positions
@@ -388,51 +408,6 @@ class EqualizerCurvePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant EqualizerCurvePainter old) => old.bands != bands;
-}
 
-// Dotted reference lines for slider background
-class _DottedLinesPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    const double lineLength = 6.0;
-    const double strokeWidth = 1.0;
-    final Paint paint = Paint()
-      ..color = ThemeColorsUtil.textColorSecondary.withOpacity(0.3)
-      ..strokeWidth = strokeWidth;
 
-    // Draw dotted lines at key dB levels: +10dB, 0dB, -10dB
-    final dBLevels = [10.0, 0.0, -10.0]; // Skip +20dB and -20dB as they're at edges
-
-    for (final db in dBLevels) {
-      // Convert dB to slider position (0.0 to 1.0)
-      final sliderPos = (db + 20.0) / 40.0; // -20dB = 0.0, +20dB = 1.0
-      final y = size.height * sliderPos;
-
-      // Draw dotted horizontal line (but rotated 90 degrees due to RotatedBox)
-      _drawDottedLine(canvas, Offset(10, y), Offset(size.width - 10, y), paint, lineLength);
-    }
-  }
-
-  void _drawDottedLine(Canvas canvas, Offset start, Offset end, Paint paint, double dashLength) {
-    final double dashGap = dashLength;
-    final double totalDistance = (end - start).distance;
-    final int dashCount = (totalDistance / (dashLength + dashGap)).floor();
-
-    if (dashCount <= 0) return;
-
-    final Offset diff = end - start;
-    final Offset direction = Offset(diff.dx / totalDistance, diff.dy / totalDistance) * dashLength;
-
-    for (int i = 0; i < dashCount; i += 2) {
-      final Offset dashStart = start + direction * i.toDouble();
-      final Offset dashEnd = dashStart + direction;
-
-      if (dashEnd.dx <= end.dx || dashEnd.dy <= end.dy) {
-        canvas.drawLine(dashStart, dashEnd, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DottedLinesPainter old) => false;
 }
