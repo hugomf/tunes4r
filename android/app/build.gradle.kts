@@ -11,12 +11,12 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -24,7 +24,7 @@ android {
         applicationId = "com.ocelot.tunes4r"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = flutter.minSdkVersion  // Android 10 (API 29) is the minimum supported version
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -40,7 +40,11 @@ android {
 }
 
 dependencies {
-    implementation("androidx.media:media:1.6.0")
+    implementation("androidx.media:media:1.7.1")
+    implementation("com.android.support:support-media-compat:28.0.0")
+    implementation("com.android.support:support-v4:28.0.0")
+
+
 }
 
 flutter {

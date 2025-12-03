@@ -34,261 +34,261 @@ class PlaylistWidget extends StatelessWidget {
           return Container(
             color: ThemeColorsUtil.scaffoldBackgroundColor,
             child: Column(
-            children: [
-              // Create New Playlist Button and Import Button
-            // Replace the entire Row with two big buttons with this:
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Create New Playlist - Floating-style Icon Button
-                  Flexible(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        FloatingActionButton(
-                          heroTag: "create_playlist",
-                          backgroundColor: ThemeColorsUtil.primaryColor,
-                          elevation: 6,
-                          onPressed: () async {
-                            final TextEditingController controller = TextEditingController();
-                            final result = await showDialog<String>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                backgroundColor: ThemeColorsUtil.surfaceColor,
-                                title: Text(
-                                  'Create Playlist',
-                                  style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
-                                ),
-                                content: TextField(
-                                  controller: controller,
-                                  decoration: InputDecoration(
-                                    hintText: 'Enter playlist name',
-                                    hintStyle: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+              children: [
+                // Create New Playlist Button and Import Button
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Create New Playlist - Floating-style Icon Button
+                      Flexible(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            FloatingActionButton(
+                              heroTag: "create_playlist",
+                              backgroundColor: ThemeColorsUtil.primaryColor,
+                              elevation: 6,
+                              onPressed: () async {
+                                final TextEditingController controller = TextEditingController();
+                                final result = await showDialog<String>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    backgroundColor: ThemeColorsUtil.surfaceColor,
+                                    title: Text(
+                                      'Create Playlist',
+                                      style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+                                    ),
+                                    content: TextField(
+                                      controller: controller,
+                                      decoration: InputDecoration(
+                                        hintText: 'Enter playlist name',
+                                        hintStyle: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+                                      ),
+                                      autofocus: true,
+                                      style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.of(context).pop(),
+                                        child: Text('Cancel', style: TextStyle(color: ThemeColorsUtil.textColorSecondary)),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          final name = controller.text.trim();
+                                          if (name.isNotEmpty) Navigator.of(context).pop(name);
+                                        },
+                                        child: Text('Create', style: TextStyle(color: ThemeColorsUtil.primaryColor)),
+                                      ),
+                                    ],
                                   ),
-                                  autofocus: true,
-                                  style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+                                );
+
+                                if (result != null && result.isNotEmpty) {
+                                  await playlistState.createPlaylist(result);
+                                }
+                              },
+                              child: Icon(Icons.add, color: ThemeColorsUtil.iconPrimary, size: 28),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'New Playlist',
+                              style: TextStyle(
+                                color: ThemeColorsUtil.textColorSecondary,
+                                fontSize: 12,
+                              ),
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(width: 32),
+
+                      // Import Playlist - Secondary style
+                      Flexible(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            FloatingActionButton(
+                              heroTag: "import_playlist",
+                              backgroundColor: ThemeColorsUtil.secondary,
+                              elevation: 6,
+                              onPressed: () => playlistState.showPlaylistImportDialog(context, []),
+                              child: Icon(Icons.file_upload, color: ThemeColorsUtil.iconPrimary, size: 28),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Import',
+                              style: TextStyle(
+                                color: ThemeColorsUtil.textColorSecondary,
+                                fontSize: 12,
+                              ),
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Playlists List
+                Expanded(
+                  child: playlistState.userPlaylists.isEmpty
+                      ? Center(
+                          child: Text(
+                            '🎵 No playlists yet.\nCreate your first playlist above!',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: ThemeColorsUtil.textColorSecondary,
+                              fontSize: 16,
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: playlistState.userPlaylists.length,
+                          itemBuilder: (context, index) {
+                            final playlist = playlistState.userPlaylists[index];
+                            final bool isActive = playlistState.currentPlaylist == playlist;
+                            return Container(
+                              margin: const EdgeInsets.symmetric(vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isActive
+                                  ? ThemeColorsUtil.primaryColor.withOpacity(0.1)
+                                  : ThemeColorsUtil.surfaceColor,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isActive
+                                    ? ThemeColorsUtil.primaryColor
+                                    : Colors.transparent,
+                                  width: 2,
                                 ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.of(context).pop(),
-                                    child: Text('Cancel', style: TextStyle(color: ThemeColorsUtil.textColorSecondary)),
+                              ),
+                              child: Row(
+                                children: [
+                                  // Main tappable area
+                                  Expanded(
+                                    child: InkWell(
+                                      onTap: () async {
+                                        await playlistState.loadPlaylist(playlist);
+                                        playlistState.setManagingPlaylists(false);
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.playlist_play,
+                                              color: isActive
+                                                ? ThemeColorsUtil.primaryColor
+                                                : ThemeColorsUtil.textColorSecondary,
+                                              size: 24,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    playlist.name,
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                                                      color: isActive
+                                                        ? ThemeColorsUtil.primaryColor
+                                                        : ThemeColorsUtil.textColorPrimary,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '${playlist.songs.length} ${playlist.songs.length == 1 ? 'song' : 'songs'}',
+                                                    style: TextStyle(
+                                                      color: isActive
+                                                        ? ThemeColorsUtil.primaryColor.withOpacity(0.8)
+                                                        : ThemeColorsUtil.textColorSecondary,
+                                                    ),
+                                                  ),
+                                                  if (isActive) ...[
+                                                    Text(
+                                                      'Currently loaded',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: ThemeColorsUtil.primaryColor,
+                                                        fontWeight: FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                  TextButton(
-                                    onPressed: () {
-                                      final name = controller.text.trim();
-                                      if (name.isNotEmpty) Navigator.of(context).pop(name);
+                                  // Menu button
+                                  PopupMenuButton<String>(
+                                    onSelected: (value) async {
+                                      switch (value) {
+                                        case 'edit':
+                                          await playlistState.loadPlaylist(playlist);
+                                          playlistState.setManagingPlaylists(false);
+                                          break;
+                                        case 'delete':
+                                          await playlistState.deletePlaylist(playlist, context);
+                                          break;
+                                      }
                                     },
-                                    child: Text('Create', style: TextStyle(color: ThemeColorsUtil.primaryColor)),
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(
+                                        value: 'edit',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.edit, size: 18),
+                                            SizedBox(width: 8),
+                                            Text('Edit Playlist'),
+                                          ],
+                                        ),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'delete',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.delete, size: 18),
+                                            SizedBox(width: 8),
+                                            Text('Delete Playlist'),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Icon(
+                                        Icons.more_vert,
+                                        color: ThemeColorsUtil.textColorSecondary,
+                                        size: 20,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
                             );
-
-                            if (result != null && result.isNotEmpty) {
-                              await playlistState.createPlaylist(result);
-                            }
                           },
-                          child: Icon(Icons.add, color: ThemeColorsUtil.iconPrimary, size: 28),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'New Playlist',
-                          style: TextStyle(
-                            color: ThemeColorsUtil.textColorSecondary,
-                            fontSize: 12,
-                          ),
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(width: 32),
-
-                  // Import Playlist - Secondary style
-                  Flexible(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        FloatingActionButton(
-                          heroTag: "import_playlist",
-                          backgroundColor: ThemeColorsUtil.secondary,
-                          elevation: 6,
-                          onPressed: () => playlistState.showPlaylistImportDialog(context, []),
-                          child: Icon(Icons.file_upload, color: ThemeColorsUtil.iconPrimary, size: 28),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Import',
-                          style: TextStyle(
-                            color: ThemeColorsUtil.textColorSecondary,
-                            fontSize: 12,
-                          ),
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-
-              // Playlists List
-              Expanded(
-                child: playlistState.userPlaylists.isEmpty
-                    ? Center(
-                        child: Text(
-                          '🎵 No playlists yet.\nCreate your first playlist above!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: ThemeColorsUtil.textColorSecondary,
-                            fontSize: 16,
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: playlistState.userPlaylists.length,
-                        itemBuilder: (context, index) {
-                          final playlist = playlistState.userPlaylists[index];
-                          final bool isActive = playlistState.currentPlaylist == playlist;
-                          return Container(
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isActive
-                                ? ThemeColorsUtil.primaryColor.withOpacity(0.1)
-                                : ThemeColorsUtil.surfaceColor,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isActive
-                                  ? ThemeColorsUtil.primaryColor
-                                  : Colors.transparent,
-                                width: 2,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                // Main tappable area
-                                Expanded(
-                                  child: InkWell(
-                                    onTap: () async {
-                                      await playlistState.loadPlaylist(playlist);
-                                      playlistState.setManagingPlaylists(false);
-                                    },
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.playlist_play,
-                                            color: isActive
-                                              ? ThemeColorsUtil.primaryColor
-                                              : ThemeColorsUtil.textColorSecondary,
-                                            size: 24,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  playlist.name,
-                                                  style: TextStyle(
-                                                    fontSize: 18,
-                                                    fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                                                    color: isActive
-                                                      ? ThemeColorsUtil.primaryColor
-                                                      : ThemeColorsUtil.textColorPrimary,
-                                                  ),
-                                                ),
-                                                Text(
-                                                  '${playlist.songs.length} ${playlist.songs.length == 1 ? 'song' : 'songs'}',
-                                                  style: TextStyle(
-                                                    color: isActive
-                                                      ? ThemeColorsUtil.primaryColor.withOpacity(0.8)
-                                                      : ThemeColorsUtil.textColorSecondary,
-                                                  ),
-                                                ),
-                                                if (isActive) ...[
-                                                  Text(
-                                                    'Currently loaded',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: ThemeColorsUtil.primaryColor,
-                                                      fontWeight: FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                // Menu button
-                                PopupMenuButton<String>(
-                                  onSelected: (value) async {
-                                    switch (value) {
-                                      case 'edit':
-                                        await playlistState.loadPlaylist(playlist);
-                                        playlistState.setManagingPlaylists(false);
-                                        break;
-                                      case 'delete':
-                                        await playlistState.deletePlaylist(playlist, context);
-                                        break;
-                                    }
-                                  },
-                                  itemBuilder: (context) => [
-                                    const PopupMenuItem(
-                                      value: 'edit',
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.edit, size: 18),
-                                          SizedBox(width: 8),
-                                          Text('Edit Playlist'),
-                                        ],
-                                      ),
-                                    ),
-                                    const PopupMenuItem(
-                                      value: 'delete',
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.delete, size: 18),
-                                          SizedBox(width: 8),
-                                          Text('Delete Playlist'),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Icon(
-                                      Icons.more_vert,
-                                      color: ThemeColorsUtil.textColorSecondary,
-                                      size: 20,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          ),
-        );
+          );
         }
 
         // Individual Playlist Editing View
         else {
           return Scaffold(
+            backgroundColor: ThemeColorsUtil.scaffoldBackgroundColor,
             appBar: AppBar(
               backgroundColor: ThemeColorsUtil.appBarBackgroundColor,
               elevation: 0,
@@ -400,154 +400,160 @@ class PlaylistWidget extends StatelessWidget {
               ),
             ),
 
-            body: Column(
-              children: [
-                // Playlist Name Header
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: ThemeColorsUtil.surfaceColor,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          playlistState.currentPlaylist?.name ?? 'Current Playlist',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: ThemeColorsUtil.textColorPrimary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Playlist Content
-                Expanded(
-                  child: playlistState.playlist.isEmpty
-                      ? Center(
+            // Body uses theme background with proper container wrapping for the list
+            body: Container(
+              color: ThemeColorsUtil.scaffoldBackgroundColor,
+              child: Column(
+                children: [
+                  // Playlist Name Header
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    color: ThemeColorsUtil.surfaceColor,
+                    child: Row(
+                      children: [
+                        Expanded(
                           child: Text(
-                            '🎵 This playlist is empty.\nAdd songs from the Library.',
-                            textAlign: TextAlign.center,
+                            playlistState.currentPlaylist?.name ?? 'Current Playlist',
                             style: TextStyle(
-                              color: ThemeColorsUtil.textColorSecondary,
-                              fontSize: 16,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: ThemeColorsUtil.textColorPrimary,
                             ),
                           ),
-                        )
-                      : ReorderableListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: playlistState.playlist.length,
-                          onReorder: (oldIndex, newIndex) {
-                            playlistState.reorderPlaylist(oldIndex, newIndex);
-                          },
-                          itemBuilder: (context, index) {
-                            final song = playlistState.playlist[index];
-                            final bool isCurrent = currentSong != null && song.path == currentSong!.path;
-                            return GestureDetector(
-                              key: ValueKey(song.path),
-                              onDoubleTap: () => playFromIndex(playlistState.playlist, index),
-                              child: Container(
-                                margin: const EdgeInsets.symmetric(vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: isCurrent
-                                    ? ThemeColorsUtil.primaryColor.withOpacity(0.1)
-                                    : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: ListTile(
-                                  leading: Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: isCurrent
-                                        ? ThemeColorsUtil.primaryColor.withOpacity(0.2)
-                                        : ThemeColorsUtil.surfaceColor,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: isCurrent
-                                        ? Border.all(color: ThemeColorsUtil.primaryColor, width: 2)
-                                        : null,
-                                    ),
-                                    child: song.albumArt != null
-                                        ? ClipRRect(
-                                            borderRadius: BorderRadius.circular(6),
-                                            child: Stack(
-                                              children: [
-                                                Image.memory(
-                                                  song.albumArt!,
-                                                  fit: BoxFit.cover,
-                                                  width: double.infinity,
-                                                  height: double.infinity,
-                                                ),
-                                                if (isCurrent)
-                                                  Container(
-                                                    decoration: BoxDecoration(
-                                                      color: ThemeColorsUtil.primaryColor.withOpacity(0.7),
-                                                      borderRadius: BorderRadius.circular(6),
-                                                    ),
-                                                    child: Icon(
-                                                      Icons.volume_up,
-                                                      color: ThemeColorsUtil.surfaceColor,
-                                                      size: 20,
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          )
-                                        : Icon(
-                                            Icons.music_note,
-                                            size: 20,
-                                            color: isCurrent
-                                              ? ThemeColorsUtil.surfaceColor
-                                              : ThemeColorsUtil.primaryColor,
-                                          ),
-                                  ),
-                                  title: Text(
-                                    song.title,
-                                    style: TextStyle(
-                                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                                      color: isCurrent
-                                        ? ThemeColorsUtil.primaryColor
-                                        : ThemeColorsUtil.textColorPrimary,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    song.artist,
-                                    style: TextStyle(
-                                      color: isCurrent
-                                        ? ThemeColorsUtil.primaryColor.withOpacity(0.8)
-                                        : ThemeColorsUtil.textColorSecondary,
-                                    ),
-                                  ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (isCurrent) ...[
-                                        Icon(
-                                          Icons.volume_up,
-                                          color: ThemeColorsUtil.primaryColor,
-                                          size: 20,
-                                        ),
-                                        const SizedBox(width: 8),
-                                      ],
-                                      IconButton(
-                                        icon: Icon(
-                                          Icons.remove_circle_outline,
-                                          color: ThemeColorsUtil.error,
-                                        ),
-                                        onPressed: () => playlistState.removeFromPlaylist(song),
-                                        tooltip: 'Remove from playlist',
-                                      ),
+                        ),
+                      ],
+                    ),
+                  ),
 
-                                    ],
-                                  ),
+                  // Playlist Content with explicitly themed background
+                  Expanded(
+                    child: Container(
+                      color: ThemeColorsUtil.scaffoldBackgroundColor,
+                      child: playlistState.playlist.isEmpty
+                          ? Center(
+                              child: Text(
+                                '🎵 This playlist is empty.\nAdd songs from the Library.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: ThemeColorsUtil.textColorSecondary,
+                                  fontSize: 16,
                                 ),
                               ),
-                            );
-                          },
-                        ),
-                ),
-              ],
+                            )
+                          : ReorderableListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: playlistState.playlist.length,
+                              onReorder: (oldIndex, newIndex) {
+                                playlistState.reorderPlaylist(oldIndex, newIndex);
+                              },
+                              itemBuilder: (context, index) {
+                                final song = playlistState.playlist[index];
+                                final bool isCurrent = currentSong != null && song.path == currentSong!.path;
+                                return GestureDetector(
+                                  key: ValueKey(song.path),
+                                  onDoubleTap: () => playFromIndex(playlistState.playlist, index),
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: isCurrent
+                                        ? ThemeColorsUtil.primaryColor.withOpacity(0.1)
+                                        : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: ListTile(
+                                      leading: Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          color: isCurrent
+                                            ? ThemeColorsUtil.primaryColor.withOpacity(0.2)
+                                            : ThemeColorsUtil.surfaceColor,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: isCurrent
+                                            ? Border.all(color: ThemeColorsUtil.primaryColor, width: 2)
+                                            : null,
+                                        ),
+                                        child: song.albumArt != null
+                                            ? ClipRRect(
+                                                borderRadius: BorderRadius.circular(6),
+                                                child: Stack(
+                                                  children: [
+                                                    Image.memory(
+                                                      song.albumArt!,
+                                                      fit: BoxFit.cover,
+                                                      width: double.infinity,
+                                                      height: double.infinity,
+                                                    ),
+                                                    if (isCurrent)
+                                                      Container(
+                                                        decoration: BoxDecoration(
+                                                          color: ThemeColorsUtil.primaryColor.withOpacity(0.7),
+                                                          borderRadius: BorderRadius.circular(6),
+                                                        ),
+                                                        child: Icon(
+                                                          Icons.volume_up,
+                                                          color: ThemeColorsUtil.surfaceColor,
+                                                          size: 20,
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                              )
+                                            : Icon(
+                                                Icons.music_note,
+                                                size: 20,
+                                                color: isCurrent
+                                                  ? ThemeColorsUtil.surfaceColor
+                                                  : ThemeColorsUtil.primaryColor,
+                                              ),
+                                      ),
+                                      title: Text(
+                                        song.title,
+                                        style: TextStyle(
+                                          fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                                          color: isCurrent
+                                            ? ThemeColorsUtil.primaryColor
+                                            : ThemeColorsUtil.textColorPrimary,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        song.artist,
+                                        style: TextStyle(
+                                          color: isCurrent
+                                            ? ThemeColorsUtil.primaryColor.withOpacity(0.8)
+                                            : ThemeColorsUtil.textColorSecondary,
+                                        ),
+                                      ),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (isCurrent) ...[
+                                            Icon(
+                                              Icons.volume_up,
+                                              color: ThemeColorsUtil.primaryColor,
+                                              size: 20,
+                                            ),
+                                            const SizedBox(width: 8),
+                                          ],
+                                          IconButton(
+                                            icon: Icon(
+                                              Icons.remove_circle_outline,
+                                              color: ThemeColorsUtil.error,
+                                            ),
+                                            onPressed: () => playlistState.removeFromPlaylist(song, currentSong: currentSong),
+                                            tooltip: 'Remove from playlist',
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }

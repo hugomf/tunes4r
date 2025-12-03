@@ -1,0 +1,1 @@
+open ios/Runner.xcworkspace -a "Xcode-Beta.app"
