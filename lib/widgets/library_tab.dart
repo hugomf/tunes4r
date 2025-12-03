@@ -65,7 +65,31 @@ class _LibraryTabState extends State<LibraryTab> {
             ),
           ),
           actions: [
+            // Select All button
+            TextButton(
+              onPressed: _selectAllSongs,
+              child: Text(
+                'Select All',
+                style: TextStyle(
+                  color: ThemeColorsUtil.primaryColor,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Deselect All button
             if (_selectedSongs.isNotEmpty) ...[
+              TextButton(
+                onPressed: _deselectAllSongs,
+                child: Text(
+                  'Deselect All',
+                  style: TextStyle(
+                    color: ThemeColorsUtil.textColorSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
               IconButton(
                 icon: Icon(
                   Icons.playlist_add,
@@ -103,15 +127,17 @@ class _LibraryTabState extends State<LibraryTab> {
             itemBuilder: (context, index) {
               final song = widget.library[index];
               final bool isCurrent = widget.currentSong != null && song.path == widget.currentSong!.path;
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isCurrent
-                    ? ThemeColorsUtil.primaryColor.withOpacity(0.1)
-                    : ThemeColorsUtil.scaffoldBackgroundColor,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: ListTile(
+              return GestureDetector(
+                onDoubleTap: () => widget.onPlaySong(song), // Double tap to play immediately
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isCurrent
+                      ? ThemeColorsUtil.primaryColor.withOpacity(0.1)
+                      : ThemeColorsUtil.scaffoldBackgroundColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ListTile(
                   contentPadding: const EdgeInsets.only(left: 16, right: 8, top: 8, bottom: 8),
                   onLongPress: () => _startSelection(song),
                   leading: Container(
@@ -298,6 +324,7 @@ class _LibraryTabState extends State<LibraryTab> {
                     ),
                   ),
                 ),
+                ),
               );
             },
           );
@@ -337,6 +364,20 @@ class _LibraryTabState extends State<LibraryTab> {
       } else {
         _selectedSongs.add(song);
       }
+    });
+  }
+
+  void _selectAllSongs() {
+    setState(() {
+      _selectedSongs.clear();
+      _selectedSongs.addAll(widget.library);
+    });
+  }
+
+  void _deselectAllSongs() {
+    setState(() {
+      _selectedSongs.clear();
+      _isSelectionMode = false; // Exit selection mode when deselecting all
     });
   }
 

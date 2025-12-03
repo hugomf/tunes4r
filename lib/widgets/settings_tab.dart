@@ -11,7 +11,7 @@ class SettingsTab extends StatefulWidget {
 }
 
 class _SettingsTabState extends State<SettingsTab> {
-  static const platform = MethodChannel('com.example.tunes4r/media_controls');
+  static const platform = MethodChannel('com.ocelot.tunes4r/media_controls');
 
   Future<void> _requestMediaPermissions() async {
     try {

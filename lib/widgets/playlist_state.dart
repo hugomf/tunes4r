@@ -255,7 +255,20 @@ class PlaylistState extends ChangeNotifier {
     }
   }
 
-  void removeFromPlaylist(Song song) {
+  void removeFromPlaylist(Song song, {Song? currentSong}) {
+    // If removing the currently playing song, skip to next song
+    if (currentSong != null && song.path == currentSong.path && _callbacks != null) {
+      final currentIndex = _currentPlaylistSongs.indexOf(song);
+      if (currentIndex >= 0 && currentIndex < _currentPlaylistSongs.length - 1) {
+        // There's a next song - play it
+        final nextSong = _currentPlaylistSongs[currentIndex + 1];
+        _callbacks!.playSong(nextSong);
+      } else {
+        // This was the last song or no more songs - playNext will handle stopping
+        _callbacks!.clearQueue(); // Clear any remaining queue
+      }
+    }
+
     _currentPlaylistSongs.remove(song);
     notifyListeners();
     _savePlaylist();

@@ -23,6 +23,6 @@ Use Xcode to install the app on device - extract the .app from the ZIP and follo
 
 ## Checksum
 
-e002d026e53b5180935d738c5ddff75aff0a78f72d682b5858fe994fb7e6e2ff  ./tunes4r-macos-1.0.0.dmg
+1b7c5df8801f25cfcc2f092dd15f5f6163a97db3c0dedd5938a80aaee4569705  ./tunes4r-android-1.0.0.apk
+dae74e5fde27d9154ca7031ad07ef953b49d960132d33c6377b2e6aa75db4333  ./tunes4r-macos-1.0.0.dmg
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  ./RELEASE_NOTES.md
-e446e064230f6be6abcaf9cfbd432de129438829651ddaae91bd1abb2333a097  ./tunes4r-android-1.0.0.apk

@@ -1,190 +1,278 @@
 import Cocoa
 import FlutterMacOS
+import AVFoundation
+
+// Standard 10-band EQ center frequencies (in Hz)
+private let centerFrequencies: [Float] = [
+    32.0,   // Sub-bass
+    64.0,   // Bass
+    125.0,  // Low Mids
+    250.0,  // Mids
+    500.0,  // Upper Mids
+    1000.0, // Presence
+    2000.0, // Brilliance
+    4000.0, // Air
+    8000.0, // Brilliance
+    16000.0 // Treble
+]
 
 @main
 class AppDelegate: FlutterAppDelegate {
-    private var mediaChannel: FlutterMethodChannel?
-    private var globalMonitor: Any?
-    private var hasAccessibilityPermission = false
-
-    override func applicationDidFinishLaunching(_ notification: Notification) {
-        setupMediaControls()
-        setupMethodChannel()
-    }
+    private var audioEngine = AVAudioEngine()
+    private var playerNode = AVAudioPlayerNode()
+    private var equalizer = AVAudioUnitEQ(numberOfBands: 10)
+    private var currentBuffer: AVAudioPCMBuffer?
+    private var isPlaying = false
+    private var nodesConnected = false
+    private var equalizerBypass = true  // Start bypassed by default
 
     override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return true
     }
 
-    override func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
-        return true
+    override func applicationDidFinishLaunching(_ notification: Notification) {
+        super.applicationDidFinishLaunching(notification)
+        setupMacOSEqualizer()
     }
 
-    private func setupMediaControls() {
-        // First try local monitoring (works when app is focused)
-        NSEvent.addLocalMonitorForEvents(matching: .systemDefined) { [weak self] event in
-            return self?.handleMediaKey(event: event) ?? event
+    private func setupMacOSEqualizer() {
+        equalizer.globalGain = 0.0  // Start at 0 to avoid clipping
+
+        for i in 0..<equalizer.bands.count {
+            let band = equalizer.bands[i]
+            band.filterType = .parametric
+            band.frequency = centerFrequencies[i]
+            band.bandwidth = 0.5  // CRITICAL: Narrower bandwidth for cleaner sound (was 1.0)
+            band.gain = 0.0
+            band.bypass = false
+            
+            print("🎛️ Band \(i): \(band.frequency)Hz, BW: \(band.bandwidth)")
         }
 
-        // Then try global monitoring (works system-wide, needs accessibility)
-        _ = checkAccessibilityPermission()
-        setupGlobalMediaMonitoring()
+        print("🎛️ macOS AVAudioEngine EQ setup complete")
+    }
 
-        // Test accessibility every 2 seconds if not granted yet
-        Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            guard let self = self, !self.hasAccessibilityPermission else { return }
-            _ = self.checkAccessibilityPermission()
-            if self.hasAccessibilityPermission {
-                // Upgrade to global monitoring now that we have permission
-                self.setupGlobalMediaMonitoring()
-                print("🎵 Tunes4R: Upgraded to global media key monitoring")
+    func handleMethodCall(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        switch call.method {
+        case "playSong":
+            handlePlaySong(call, result: result)
+        case "pause":
+            playerNode.pause()
+            isPlaying = false
+            result(nil)
+        case "resume":
+            playerNode.play()
+            isPlaying = true
+            result(nil)
+        case "togglePlayPause":
+            togglePlayPause(result: result)
+        case "applyEqualizer":
+            if let args = call.arguments as? [String: Any],
+               let bands = args["bands"] as? [Double] {
+                applyEqualizer(bands: bands, result: result)
+            } else {
+                result(FlutterError(code: "INVALID_ARGUMENTS", message: "Expected bands array", details: nil))
             }
-        }
-    }
-
-    private func checkAccessibilityPermission() -> Bool {
-        // Check if we have accessibility permission
-        let checkOptionPrompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-        let options = [checkOptionPrompt: false] as CFDictionary
-        hasAccessibilityPermission = AXIsProcessTrustedWithOptions(options)
-        return hasAccessibilityPermission
-    }
-
-    private func requestAccessibilityPermission() {
-        // Show detailed alert with exact steps for sandboxed app accessibility
-        let alert = NSAlert()
-        alert.messageText = "Enable Bluetooth Headphones"
-        alert.informativeText = "To use Bluetooth headphone buttons globally with Tunes4R:\n\n1. Click 'Open System Settings' below\n2. Go to Privacy & Security → Accessibility\n3. Click '+' to add an app\n4. Find and select Tunes4R (it may be in ~/Library/Developer/Xcode/DerivedData/...)\n5. Or find it in Applications folder\n6. Enable Tunes4R\n7. Restart Tunes4R\n\nIf Tunes4R doesn't appear, quit Tunes4R, relaunch it, then retry adding it."
-
-        alert.addButton(withTitle: "Open System Settings")
-        alert.addButton(withTitle: "Later")
-
-        if alert.runModal() == .alertFirstButtonReturn {
-            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-
-            // Try to trigger accessibility dialog after opening settings
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                // This will prompt macOS to ask for accessibility permission
-                let checkOptionPrompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-                let options = [checkOptionPrompt: true] as CFDictionary // Set to true to prompt
-                _ = AXIsProcessTrustedWithOptions(options)
-                print("🎵 Tunes4R: Triggered accessibility dialog")
+        case "resetEqualizer":
+            resetEqualizer(result: result)
+        case "stop", "endPlayback":
+            playerNode.stop()
+            isPlaying = false
+            result(nil)
+        case "testExtremeEQ":
+            testExtremeEQ(result: result)
+        case "testBassBoost":
+            testBassBoost(result: result)
+        case "enableEqualizer":
+            // CRITICAL FIX: Update tracking variable AND apply to equalizer
+            equalizerBypass = false
+            equalizer.bypass = false
+            equalizer.globalGain = 0.0  // Use 0 instead of 1.0 to avoid clipping/distortion
+            
+            // CRITICAL: Un-bypass all individual bands
+            for band in equalizer.bands {
+                band.bypass = false
             }
-        }
-    }
-
-    private func setupGlobalMediaMonitoring() {
-        // Only set up global monitoring if we have accessibility permission
-        guard checkAccessibilityPermission() else {
-            print("🎵 Tunes4R: Accessibility permission not granted - media keys will only work when app is focused")
-            return
-        }
-
-        // Set up global media key monitoring (works when app is not focused)
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .systemDefined) { [weak self] event in
-            self?.handleGlobalMediaKey(event: event)
-        }
-
-        print("🎵 Tunes4R: Global media key monitoring active")
-    }
-
-    private func handleMediaKey(event: NSEvent) -> NSEvent? {
-        return handleMediaKeyLogic(event: event, consumeEvent: true)
-    }
-
-    private func handleGlobalMediaKey(event: NSEvent) {
-        _ = handleMediaKeyLogic(event: event, consumeEvent: false)
-    }
-
-    private func handleMediaKeyLogic(event: NSEvent, consumeEvent: Bool) -> NSEvent? {
-        // Check if this is a media key event
-        guard event.type == .systemDefined && event.subtype.rawValue == 8 else {
-            return consumeEvent ? event : nil
-        }
-
-        let keyCode = (event.data1 & 0xFFFF0000) >> 16
-        let keyFlags = (event.data1 & 0x0000FFFF)
-        let keyState = ((keyFlags & 0xFF00) >> 8) == 0xA
-
-        guard keyState else {
-            return consumeEvent ? event : nil
-        }
-
-        var action = ""
-
-        switch Int32(keyCode) {
-        case NX_KEYTYPE_PLAY:
-            action = "playPause"
-        case NX_KEYTYPE_NEXT:
-            action = "next"
-        case NX_KEYTYPE_PREVIOUS:
-            action = "previous"
-        case NX_KEYTYPE_FAST:
-            action = "next"  // Fast forward → next track
-        case NX_KEYTYPE_REWIND:
-            action = "previous"  // Rewind → previous track
+            
+            // Re-trigger gains to ensure they take effect
+            for i in 0..<equalizer.bands.count {
+                let gain = equalizer.bands[i].gain
+                equalizer.bands[i].gain = gain
+            }
+            
+            print("🎛️ macOS equalizer ENABLED - bypass: \(equalizer.bypass), tracking: \(equalizerBypass)")
+            result(nil)
+            
+        case "disableEqualizer":
+            // CRITICAL FIX: Update tracking variable AND apply to equalizer
+            equalizerBypass = true
+            equalizer.bypass = true
+            
+            // Also bypass individual bands
+            for band in equalizer.bands {
+                band.bypass = true
+            }
+            
+            print("🎛️ macOS equalizer DISABLED - bypass: \(equalizer.bypass), tracking: \(equalizerBypass)")
+            result(nil)
+            
+        case "debugEQState":
+            debugEQState(result: result)
+            
         default:
-            return consumeEvent ? event : nil
+            result(FlutterMethodNotImplemented)
         }
-
-        if !action.isEmpty {
-            sendMediaControlEvent(action)
-            print("🎵 Tunes4R: Handled media key - \(action)")
-            return consumeEvent ? nil : nil // Consume event for local monitor, don't consume for global
-        }
-
-        return consumeEvent ? event : nil
     }
 
-    private func sendMediaControlEvent(_ action: String) {
-        // Send event to Flutter via method channel (already set up in setupMethodChannel)
-        guard let methodChannel = self.mediaChannel else {
-            print("🎵 Tunes4R: Method channel not available for sending events")
+    private func handlePlaySong(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let args = call.arguments as? [String: Any],
+              let filePath = args["filePath"] as? String else {
+            result(FlutterError(code: "INVALID_ARGUMENTS", message: "Expected filePath", details: nil))
             return
         }
 
-        DispatchQueue.main.async {
-            methodChannel.invokeMethod("onMediaControl", arguments: action, result: nil)
-        }
+        playAudioFile(filePath: filePath, result: result)
     }
 
-    private func setupMethodChannel() {
-        // Set up method channel for bidirectional communication (Flutter ↔ native)
-        guard let flutterViewController = self.mainFlutterWindow?.contentViewController as? FlutterViewController else {
-            // Window not ready yet, retry soon
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.setupMethodChannel()
-            }
+    private func playAudioFile(filePath: String, result: @escaping FlutterResult) {
+        let url = URL(fileURLWithPath: filePath)
+        playerNode.stop()
+        playerNode.reset()
+
+        let audioFile: AVAudioFile
+        do {
+            audioFile = try AVAudioFile(forReading: url)
+        } catch let error as NSError {
+            print("🔴 Audio file load failed: \(error.localizedDescription)")
+            result(FlutterError(code: "FILE_LOAD_ERROR", message: "Could not load audio file", details: error.localizedDescription))
             return
         }
 
-        self.mediaChannel = FlutterMethodChannel(name: "com.example.tunes4r/media_controls", binaryMessenger: flutterViewController.engine.binaryMessenger)
+        let format = audioFile.processingFormat
 
-        // Set up method call handler for incoming calls from Flutter
-        self.mediaChannel?.setMethodCallHandler { [weak self] (call, result) in
-            guard let self = self else { return }
+        do {
+            if !nodesConnected {
+                print("🎛️ Attaching AVAudioEngine nodes...")
+                audioEngine.attach(playerNode)
+                audioEngine.attach(equalizer)
 
-            switch call.method {
-            case "requestMediaPermissions":
-                self.requestAccessibilityPermission()
-                result("Permission dialog shown")
-            case "checkMediaPermissions":
-                let hasPermission = self.checkAccessibilityPermission()
-                result(hasPermission)
-            default:
-                result(FlutterMethodNotImplemented)
+                print("🎛️ Initializing AVAudioEngine node connections...")
+                try audioEngine.connect(playerNode, to: equalizer, format: format)
+                try audioEngine.connect(equalizer, to: audioEngine.mainMixerNode, format: format)
+                nodesConnected = true
+                print("🎛️ Node connections established")
+            }
+        } catch let error as NSError {
+            print("🔴 AVAudioEngine node connection failed:")
+            print("   Error: \(error.localizedDescription)")
+            result(FlutterError(code: "EQ_CONNECTION_FAILED", message: "Equalizer setup failed", details: error.localizedDescription))
+            return
+        }
+
+        playerNode.scheduleFile(audioFile, at: nil) {
+            DispatchQueue.main.async {
+                print("🎵 macOS playback completed: \(url.lastPathComponent)")
             }
         }
 
-        print("🎵 Tunes4R: Method channel initialized for media controls")
+        do {
+            if !audioEngine.isRunning {
+                try audioEngine.start()
+                print("🎵 AVAudioEngine started successfully")
+                
+                // Force re-application of current EQ settings after engine starts
+                // Don't change bypass state - respect whatever was set via enable/disable
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    self.equalizer.globalGain = 1.0
+                    
+                    // Force re-application of gains
+                    for i in 0..<self.equalizer.bands.count {
+                        let gain = self.equalizer.bands[i].gain
+                        self.equalizer.bands[i].gain = gain
+                    }
+                    
+                    print("🎛️ EQ gains re-applied after engine start - bypass: \(self.equalizer.bypass)")
+                }
+            }
+            
+        } catch let error as NSError {
+            print("🔴 AVAudioEngine start failed: \(error.localizedDescription)")
+        }
+
+        playerNode.play()
+        isPlaying = true
+        print("🎵 Playing: \(url.lastPathComponent)")
+        result(nil)
     }
 
-    // Public method to check and request permissions
-    @objc func checkAndRequestMediaPermissions() {
-        if !hasAccessibilityPermission {
-            requestAccessibilityPermission()
+    private func togglePlayPause(result: @escaping FlutterResult) {
+        if isPlaying {
+            playerNode.pause()
+            isPlaying = false
         } else {
-            print("🎵 Tunes4R: Accessibility permission already granted")
+            playerNode.play()
+            isPlaying = true
         }
+        result(nil)
+    }
+
+    private func applyEqualizer(bands: [Double], result: @escaping FlutterResult) {
+        for i in 0..<min(equalizer.bands.count, bands.count) {
+            let band = equalizer.bands[i]
+            band.gain = Float(bands[i])
+            band.bypass = false  // Ensure band is active when setting gain
+        }
+        
+        print("🎛️ Applied equalizer bands: \(bands)")
+        result(nil)
+    }
+
+    private func resetEqualizer(result: @escaping FlutterResult) {
+        for band in equalizer.bands {
+            band.gain = 0.0
+        }
+        print("🎛️ Reset equalizer to flat")
+        result(nil)
+    }
+
+    private func testExtremeEQ(result: @escaping FlutterResult) {
+        equalizer.bands[0].gain = 20.0
+        equalizer.bands[1].gain = 15.0
+        equalizer.bands[8].gain = -20.0
+        equalizer.bands[9].gain = -15.0
+
+        print("🎛️ EXTREME EQ APPLIED - Bass: +20dB, Treble: -20dB")
+        result(nil)
+    }
+
+    private func testBassBoost(result: @escaping FlutterResult) {
+        equalizer.bands[0].gain = 20.0
+        equalizer.bands[1].gain = 10.0
+        equalizer.bands[2].gain = 5.0
+        equalizer.bands[8].gain = -10.0
+        equalizer.bands[9].gain = -10.0
+
+        print("🎛️ BASS BOOST TEST - 32Hz: +20dB")
+        result(nil)
+    }
+
+    deinit {
+        audioEngine.stop()
+    }
+    
+    private func debugEQState(result: @escaping FlutterResult) {
+        print("🔍 ===== EQ DEBUG STATE =====")
+        print("   Equalizer bypass: \(equalizer.bypass)")
+        print("   Equalizer globalGain: \(equalizer.globalGain)")
+        print("   Tracking bypass: \(equalizerBypass)")
+        print("   Engine running: \(audioEngine.isRunning)")
+        print("   Player playing: \(playerNode.isPlaying)")
+        print("   Nodes connected: \(nodesConnected)")
+        print("   Band gains:")
+        for (i, band) in equalizer.bands.enumerated() {
+            print("      Band \(i) (\(Int(band.frequency))Hz): \(band.gain)dB, bypass: \(band.bypass)")
+        }
+        print("========================")
+        result(nil)
     }
 }

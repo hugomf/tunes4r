@@ -84,7 +84,7 @@ import MediaPlayer
            let flutterViewController = windowScene.windows.first?.rootViewController as? FlutterViewController {
 
             if self.mediaChannel == nil {
-                self.mediaChannel = FlutterMethodChannel(name: "com.example.tunes4r/media_controls", binaryMessenger: flutterViewController.binaryMessenger)
+                self.mediaChannel = FlutterMethodChannel(name: "com.ocelot.tunes4r/media_controls", binaryMessenger: flutterViewController.binaryMessenger)
             }
 
             guard let methodChannel = self.mediaChannel else {

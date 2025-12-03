@@ -1,8 +1,6 @@
-import 'package:flutter/foundation.dart';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqflite/sqflite.dart';
-
 import 'package:tunes4r/models/song.dart';
 import 'package:tunes4r/services/database_service.dart';
 import 'package:tunes4r/services/file_import_service.dart';
@@ -10,6 +8,7 @@ import 'package:tunes4r/services/library_service.dart';
 import 'package:tunes4r/services/media_control_service.dart';
 import 'package:tunes4r/services/media_service.dart';
 import 'package:tunes4r/services/permission_service.dart';
+import 'package:tunes4r/services/audio_equalizer_service.dart';
 import 'package:tunes4r/services/playback_manager.dart';
 import 'package:tunes4r/utils/theme_colors.dart';
 import 'package:tunes4r/utils/theme_manager.dart';
@@ -23,7 +22,6 @@ import 'package:tunes4r/widgets/playlist_state.dart';
 import 'package:tunes4r/widgets/playlist_widget.dart';
 import 'package:tunes4r/widgets/settings_tab.dart';
 
-
 enum SearchMode { songs, albums }
 
 void main() {
@@ -36,7 +34,6 @@ class MusicPlayerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Initialize theme manager
     final themeManager = ThemeManager();
     final themeColors = themeManager.getCurrentColors();
 
@@ -44,7 +41,8 @@ class MusicPlayerApp extends StatelessWidget {
       title: 'Tunes4R',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        scaffoldBackgroundColor: themeColors?.scaffoldBackground ?? const Color(0xFFFBF1C7),
+        scaffoldBackgroundColor:
+            themeColors?.scaffoldBackground ?? const Color(0xFFFBF1C7),
         primaryColor: themeColors?.primary ?? const Color(0xFFB57614),
         colorScheme: ColorScheme.light(
           primary: themeColors?.primary ?? const Color(0xFFB57614),
@@ -65,8 +63,8 @@ class MusicPlayerHome extends StatefulWidget {
 }
 
 class _MusicPlayerHomeState extends State<MusicPlayerHome> {
-  // Services
   late final PlaybackManager _playbackManager;
+  late final AudioEqualizerService _equalizerService;
   late final DatabaseService _databaseService;
   late final FileImportService _fileImportService;
   late final LibraryService _libraryService;
@@ -78,8 +76,6 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
   List<Song> _library = [];
   List<Song> _favorites = [];
   int _selectedIndex = 0;
-
-  // Cached playlist state to prevent recreating it on every build
   PlaylistState? _playlistState;
 
 
@@ -87,34 +83,66 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
   void initState() {
     super.initState();
     print('Initializing Tunes4R...');
-    // Initialize services
+
     _databaseService = DatabaseService();
     _libraryService = LibraryService(_databaseService);
-    _fileImportService = FileImportService(_databaseService, libraryService: _libraryService);
+    _fileImportService = FileImportService(
+      _databaseService,
+      libraryService: _libraryService,
+    );
     _mediaService = MediaService();
     _permissionService = PermissionService();
-
-    // Initialize PlaybackManager first
     _playbackManager = PlaybackManager();
+    _equalizerService = AudioEqualizerService(_playbackManager);
+    _mediaControlService = MediaControlService(_playbackManager);
+
     _playbackManager.initialize(
       onStateChanged: () {
         if (mounted) setState(() {});
-        // Update media control service when playback state changes
-        _mediaControlService.updatePlaybackState();
       },
       onSongChanged: (song) {
-        // Handle song change if needed
-        // Update media control service with new metadata
+        print('Song changed to: ${song.title}');
         _mediaControlService.updateMetadata();
+      },
+      onPlaybackStateChangedForMediaControls: () {
+        _mediaControlService.updatePlaybackState();
+      },
+      onPlaybackError: (errorMessage) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Container(
+                decoration: BoxDecoration(
+                  color: ThemeColorsUtil.surfaceColor,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Text(
+                  'Playback Error: $errorMessage',
+                  style: TextStyle(color: ThemeColorsUtil.error),
+                ),
+              ),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(16),
+            ),
+          );
+        }
       },
     );
 
-    // Initialize MediaControlService after PlaybackManager
-    _mediaControlService = MediaControlService(_playbackManager);
-
+    _equalizerService.initialize();
     _initApp().then((_) {
       print('App initialized successfully');
-      // Initialize playlist state after app is ready
       _initPlaylistState();
     }).catchError((error) {
       print('Error initializing app: $error');
@@ -127,7 +155,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
       await _initDatabase();
       await _loadPreferences();
       await _libraryService.initializeLibrary();
-      // Set up reactive streams
+
       _libraryService.libraryStream.listen((library) {
         if (mounted) {
           setState(() {
@@ -142,17 +170,15 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
           });
         }
       });
-      // Update local state immediately
+
       _library = _libraryService.library;
       _favorites = _libraryService.favorites;
     } catch (e) {
       print('Error in _initApp: $e');
-      // Continue with empty data
     }
   }
 
   Future<void> _initDatabase() async {
-    // Initialize database by accessing the getter
     await _databaseService.database;
   }
 
@@ -172,63 +198,55 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
   Future<void> _initPlaylistState() async {
     try {
-      print('🔍 _initPlaylistState: Starting initialization...');
       final db = await _databaseService.database;
       _playlistState = PlaylistState();
       _playlistState!.setDatabase(db);
-      _playlistState!.setCallbacks(PlaylistCallbacks(
-        addToPlaylist: (song) => _playbackManager.addToQueue(song),
-        addToPlayNext: (song, showSnackbar) => _playbackManager.addToPlayNext(song),
-        playSong: _playSong,
-        clearQueue: () => _playbackManager.clearQueue(),
-        addSongsToQueue: (songs) => songs.forEach((song) => _playbackManager.addToQueue(song)),
-        showSnackBar: (message) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Container(
-                  decoration: BoxDecoration(
-                    color: ThemeColorsUtil.surfaceColor,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.4),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
-                        spreadRadius: 2,
-                      ),
-                    ],
+      _playlistState!.setCallbacks(
+        PlaylistCallbacks(
+          addToPlaylist: (song) => _playbackManager.addToQueue(song),
+          addToPlayNext: (song, showSnackbar) => _playbackManager.addToPlayNext(song),
+          playSong: _playSong,
+          clearQueue: () => _playbackManager.clearQueue(),
+          addSongsToQueue: (songs) => songs.forEach((song) => _playbackManager.addToQueue(song)),
+          showSnackBar: (message) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Container(
+                    decoration: BoxDecoration(
+                      color: ThemeColorsUtil.surfaceColor,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Text(
+                      message,
+                      style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+                    ),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Text(
-                    message,
-                    style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
-                  ),
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  behavior: SnackBarBehavior.floating,
+                  margin: const EdgeInsets.all(16),
                 ),
-                backgroundColor: Colors.transparent, // Make background transparent so shadow shows
-                elevation: 0, // Remove default elevation
-                behavior: SnackBarBehavior.floating,
-                margin: const EdgeInsets.all(16),
-              ),
-            );
-          }
-        },
-      ));
-      print('🔍 _initPlaylistState: Loading playlists for ${_library.length} songs...');
+              );
+            }
+          },
+        ),
+      );
       await _playlistState!.loadUserPlaylists(_library);
-      print('🔍 _initPlaylistState: Loaded ${_playlistState!.userPlaylists.length} playlists');
-
-      // Trigger UI rebuild now that playlist state is ready
-      if (mounted) {
-        print('🔍 _initPlaylistState: Triggering UI rebuild');
-        setState(() {});
-      }
+      if (mounted) setState(() {});
     } catch (e) {
-      print('❌ Error initializing playlist state: $e');
+      print('Error initializing playlist state: $e');
     }
   }
-
-
 
   Future<void> _savePreferences() async {
     try {
@@ -239,99 +257,60 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     }
   }
 
-
-
-
-
   Future<void> _pickFiles() async {
-    final result = await _fileImportService.importFiles(context);
+    await _fileImportService.importFiles(context);
   }
 
   Future<void> _playSong(Song song) async {
-    // Determine context based on current tab
     List<Song>? context;
     switch (_selectedIndex) {
-      case 0: // Library
+      case 0:
         context = _library.isNotEmpty ? _library : null;
         break;
-      case 1: // Playlist - use current playlist if not managing playlists
-        if (_playlistState != null &&
-            !_playlistState!.isManagingPlaylists &&
-            _playlistState!.playlist.isNotEmpty) {
+      case 1:
+        if (_playlistState != null && !_playlistState!.isManagingPlaylists && _playlistState!.playlist.isNotEmpty) {
           context = _playlistState!.playlist;
-        } else {
-          context = null;
         }
         break;
-      case 4: // Favorites
+      case 4:
         context = _favorites.isNotEmpty ? _favorites : null;
         break;
-      default:
-        context = null;
     }
     _playbackManager.playSong(song, context: context);
   }
 
   Future<void> _togglePlayPause() async {
-    // If we have a current song playing or paused, toggle play/pause
     if (_playbackManager.currentSong != null) {
       _playbackManager.togglePlayPause();
       return;
     }
-
-    // No current playback - start from current tab's content
-    if (_selectedIndex == 1 &&
-        _playlistState != null &&
-        !_playlistState!.isManagingPlaylists &&
-        _playlistState!.playlist.isNotEmpty) {
+    if (_selectedIndex == 1 && _playlistState != null && !_playlistState!.isManagingPlaylists && _playlistState!.playlist.isNotEmpty) {
       _playFromIndex(_playlistState!.playlist, 0);
       return;
     }
-
-    // If we're on the library tab, start from first song of library
     if (_selectedIndex == 0 && _library.isNotEmpty) {
       _playFromIndex(_library, 0);
       return;
     }
-
-    // If we're on favorites tab, start from first favorite
     if (_selectedIndex == 4 && _favorites.isNotEmpty) {
       _playFromIndex(_favorites, 0);
       return;
     }
-
-    // Nothing to play - just toggle (should do nothing)
     _playbackManager.togglePlayPause();
   }
 
-  void _playNext() {
-    _playbackManager.playNext();
-  }
-
-  void _playPrevious() {
-    _playbackManager.playPrevious();
-  }
-
-  void _addToQueue(Song song) {
-    _playbackManager.addToQueue(song);
-  }
-
-  void _addToPlayNext(Song song) {
-    _playbackManager.addToPlayNext(song);
-  }
+  void _playNext() => _playbackManager.playNext();
+  void _playPrevious() => _playbackManager.playPrevious();
+  void _addToQueue(Song song) => _playbackManager.addToQueue(song);
+  void _addToPlayNext(Song song) => _playbackManager.addToPlayNext(song);
 
   void _playFromIndex(List<Song> songs, int startIndex) {
-    // Set playlist mode and context for looping
     _playbackManager.startPlaylistPlayback(songs);
-
-    // Clear the queue and add only songs starting from the selected index
     _playbackManager.clearQueue();
     final songsToAdd = songs.sublist(startIndex);
     for (var song in songsToAdd) {
       _playbackManager.addToQueue(song);
     }
-
-    // Start playing the selected song
     if (songsToAdd.isNotEmpty) {
       _playbackManager.playSong(songsToAdd.first);
     }
@@ -342,40 +321,31 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
   }
 
   Future<void> _addSelectedSongsToPlaylist(Set<Song> selectedSongs) async {
-    print('🔍 main.dart _addSelectedSongsToPlaylist: Called with ${selectedSongs.length} songs');
-    if (_playlistState == null || selectedSongs.isEmpty) {
-      print('❌ main.dart _addSelectedSongsToPlaylist: Early return - playlistState: ${_playlistState == null}, songs empty: ${selectedSongs.isEmpty}');
-      return;
-    }
-    print('✅ main.dart _addSelectedSongsToPlaylist: Proceeding to call addSelectedSongsToPlaylist');
-
-    await _playlistState!.addSelectedSongsToPlaylist(
-      selectedSongs,
-      context,
-      _library,
-    );
-
-    // Success - optionally cancel selection mode here if needed
-    // For now, user can manually cancel or the selection stays active
+    if (_playlistState == null || selectedSongs.isEmpty) return;
+    await _playlistState!.addSelectedSongsToPlaylist(selectedSongs, context, _library);
   }
 
   Future<void> _removeSong(Song song) async {
     await _libraryService.removeSong(song);
-
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Removed "${song.title}" from library',
-            style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
-          ),
+          content: Text('Removed "${song.title}" from library', style: TextStyle(color: ThemeColorsUtil.textColorPrimary)),
           backgroundColor: ThemeColorsUtil.surfaceColor,
         ),
       );
     }
   }
 
-
+  void _scrollToCurrentSong() {
+    final currentSong = _playbackManager.currentSong;
+    if (currentSong == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No song is currently playing', style: TextStyle(color: ThemeColorsUtil.textColorPrimary)), backgroundColor: ThemeColorsUtil.surfaceColor),
+      );
+      return;
+    }
+  }
 
   @override
   void dispose() {
@@ -384,10 +354,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     super.dispose();
   }
 
-
-
   Widget _buildPlaylist() {
-    // Use cached playlist state if available
     if (_playlistState != null) {
       return PlaylistWidget(
         playlistState: _playlistState!,
@@ -398,27 +365,18 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
         currentSong: _playbackManager.currentSong,
         showSnackBar: (message) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                message,
-                style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
-              ),
-              backgroundColor: ThemeColorsUtil.surfaceColor,
-            ),
+            SnackBar(content: Text(message, style: TextStyle(color: ThemeColorsUtil.textColorPrimary)), backgroundColor: ThemeColorsUtil.surfaceColor),
           );
         },
       );
     }
-
-    // Show loading until playlist state is initialized
-    return const Center(
-      child: CircularProgressIndicator(),
-    );
+    return const Center(child: CircularProgressIndicator());
   }
 
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 600;
+
     return Scaffold(
       backgroundColor: ThemeColorsUtil.scaffoldBackgroundColor,
       appBar: AppBar(
@@ -426,87 +384,53 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
         elevation: 0,
         title: Text(
           _selectedIndex == 0
-            ? 'Library (${_library.length})'
-            : _selectedIndex == 1
-                ? 'Playlists'
-                : _selectedIndex == 2
-                    ? 'Now Playing'
-                    : _selectedIndex == 3
-                        ? 'Albums (${_library.map((song) => song.album).toSet().length})'
-                        : _selectedIndex == 4
-                            ? 'Favorites (${_favorites.length})'
-                            : _selectedIndex == 5
-                                ? 'Download'
-                                : 'Settings',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: ThemeColorsUtil.textColorPrimary,
-          ),
+              ? 'Library (${_library.length})'
+              : _selectedIndex == 1
+                  ? 'Playlists'
+                  : _selectedIndex == 2
+                      ? 'Now Playing'
+                      : _selectedIndex == 3
+                          ? 'Albums (${_library.map((song) => song.album).toSet().length})'
+                          : _selectedIndex == 4
+                              ? 'Favorites (${_favorites.length})'
+                              : _selectedIndex == 5
+                                  ? 'Download'
+                                  : 'Settings',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: ThemeColorsUtil.textColorPrimary),
         ),
         actions: [
           if (_selectedIndex == 0) ...[
-            // Library controls - simplified
-            if (isMobile) ...[
-              // On mobile, show primary action and use overflow menu
+            if (isMobile)
               Padding(
                 padding: const EdgeInsets.only(right: 16),
                 child: IconButton(
                   onPressed: _pickFiles,
-                  icon: Icon(
-                    Icons.add,
-                    color: ThemeColorsUtil.scaffoldBackgroundColor,
-                  ),
-                  style: IconButton.styleFrom(
-                    backgroundColor: ThemeColorsUtil.primaryColor,
-                  ),
+                  icon: Icon(Icons.add, color: ThemeColorsUtil.scaffoldBackgroundColor),
+                  style: IconButton.styleFrom(backgroundColor: ThemeColorsUtil.primaryColor),
                   tooltip: 'Add Music',
                 ),
               ),
+            if (isMobile)
               PopupMenuButton<String>(
-                icon: Icon(
-                  Icons.more_vert,
-                  color: ThemeColorsUtil.textColorSecondary,
-                ),
-                tooltip: 'More Options',
-                onSelected: (value) {
-                  switch (value) {
-                    case 'clear':
-                      _clearLibrary();
-                      break;
-                  }
-                },
+                icon: Icon(Icons.more_vert, color: ThemeColorsUtil.textColorSecondary),
+                onSelected: (value) => value == 'clear' ? _clearLibrary() : null,
                 itemBuilder: (context) => [
                   PopupMenuItem(
                     value: 'clear',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.clear_all,
-                          color: ThemeManager().getCurrentColors()?.error ?? const Color(0xFFCC241D),
-                          size: 18,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Clear Library',
-                          style: TextStyle(
-                            color: ThemeManager().getCurrentColors()?.error ?? const Color(0xFFCC241D),
-                          ),
-                        ),
-                      ],
-                    ),
+                    child: Row(children: [
+                      Icon(Icons.clear_all, color: ThemeManager().getCurrentColors()?.error ?? const Color(0xFFCC241D), size: 18),
+                      const SizedBox(width: 8),
+                      Text('Clear Library', style: TextStyle(color: ThemeManager().getCurrentColors()?.error ?? const Color(0xFFCC241D))),
+                    ]),
                   ),
                 ],
-              ),
-            ] else ...[
+              )
+            else ...[
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: IconButton(
                   onPressed: _clearLibrary,
-                  icon: Icon(
-                    Icons.clear_all,
-                    color: ThemeManager().getCurrentColors()?.error ?? const Color(0xFFCC241D),
-                  ),
+                  icon: Icon(Icons.clear_all, color: ThemeManager().getCurrentColors()?.error ?? const Color(0xFFCC241D)),
                   tooltip: 'Clear Library',
                 ),
               ),
@@ -514,72 +438,100 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                 padding: const EdgeInsets.only(right: 16),
                 child: IconButton(
                   onPressed: _pickFiles,
-                  icon: Icon(
-                    Icons.add,
-                    color: ThemeColorsUtil.scaffoldBackgroundColor,
-                  ),
-                  style: IconButton.styleFrom(
-                    backgroundColor: ThemeColorsUtil.primaryColor,
-                  ),
+                  icon: Icon(Icons.add, color: ThemeColorsUtil.scaffoldBackgroundColor),
+                  style: IconButton.styleFrom(backgroundColor: ThemeColorsUtil.primaryColor),
                   tooltip: 'Add Music',
                 ),
               ),
-            ]
+            ],
           ],
         ],
         leading: Builder(
           builder: (context) => IconButton(
-            icon: Icon(
-              Icons.menu,
-              color: ThemeColorsUtil.textColorPrimary,
-            ),
+            icon: Icon(Icons.menu, color: ThemeColorsUtil.textColorPrimary),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
       ),
-      drawer: SizedBox(
-        width: isMobile ? 220.0 : null,
-        child: Drawer(
-          backgroundColor: ThemeColorsUtil.scaffoldBackgroundColor,
+
+      // BEAUTIFUL BLURRED TRANSPARENT DRAWER
+     drawer: SizedBox(
+  width: isMobile ? 280.0 : 300.0, // Slightly wider looks better with blur
+  child: Drawer(
+    backgroundColor: Colors.transparent, // Important!
+    elevation: 0,
+    child: ClipRRect(
+      borderRadius: const BorderRadius.only(
+        topRight: Radius.circular(20),
+        bottomRight: Radius.circular(20),
+      ),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12), // Blur intensity
+        child: Container(
+          decoration: BoxDecoration(
+            color: ThemeColorsUtil.scaffoldBackgroundColor.withOpacity(0.4), // Semi-transparent
+            borderRadius: const BorderRadius.only(
+              topRight: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.1),
+              width: 1,
+            ),
+          ),
           child: SafeArea(
             child: Column(
               children: [
+                // Header
                 Container(
-                  padding: const EdgeInsets.all(16),
-                  color: ThemeColorsUtil.appBarBackgroundColor,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: ThemeColorsUtil.appBarBackgroundColor.withOpacity(0.7),
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
                   child: Center(
                     child: Text(
-                      '🎵 Tunes4R',
+                      'Tunes4R',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: ThemeColorsUtil.textColorPrimary,
+                        shadows: [
+                          Shadow(
+                            blurRadius: 10,
+                            color: Colors.black.withOpacity(0.3),
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
+
+                // Menu Items
                 Expanded(
                   child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     children: [
                       _buildDrawerItem(Icons.library_music, 'Library', 0),
                       _buildDrawerItem(Icons.playlist_play, 'Playlist', 1),
-                      _buildDrawerItem(Icons.album, 'Now Playing', 2),
-                      _buildDrawerItem(Icons.music_note, 'Albums', 3),
+                      _buildDrawerItem(Icons.play_circle, 'Now Playing', 2),
+                      _buildDrawerItem(Icons.album, 'Albums', 3),
                       _buildDrawerItem(Icons.favorite, 'Favorites', 4),
                       _buildDrawerItem(Icons.cloud_download, 'Download', 5),
-
-                      _buildDrawerItem(Icons.palette, 'Settings', 6, useShortLabels: false),
-
-                      // Footer
+                      _buildDrawerItem(Icons.settings, 'Settings', 6),
+                      const SizedBox(height: 20),
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Text(
-                          'Made by Silverio/ Qualitas',
+                          'Made by Silverio / Qualitas',
                           style: TextStyle(
-                            color: ThemeColorsUtil.textColorSecondary,
+                            color: ThemeColorsUtil.textColorSecondary.withOpacity(0.8),
                             fontSize: 12,
                           ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                     ],
@@ -590,9 +542,12 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
           ),
         ),
       ),
+    ),
+  ),
+),
+
       body: Column(
         children: [
-          // Content
           Expanded(
             child: _selectedIndex == 0
                 ? LibraryTab(
@@ -603,13 +558,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                       _addToPlayNext(song);
                       if (message != null) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              message,
-                              style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
-                            ),
-                            backgroundColor: ThemeColorsUtil.surfaceColor,
-                          ),
+                          SnackBar(content: Text(message, style: TextStyle(color: ThemeColorsUtil.textColorPrimary)), backgroundColor: ThemeColorsUtil.surfaceColor),
                         );
                       }
                     },
@@ -630,28 +579,18 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                             onPlayPrevious: _playPrevious,
                           )
                         : _selectedIndex == 3
-                            ? AlbumsTab(
-                                library: _library,
-                                onPlaySong: _playSong,
-                                playbackManager: _playbackManager,
-                              )
+                            ? AlbumsTab(library: _library, onPlaySong: _playSong, playbackManager: _playbackManager)
                             : _selectedIndex == 4
-                                ? FavoritesTab(
-                                    favorites: _favorites,
-                                    onPlaySong: _playSong,
-                                    onAddToQueue: _addToQueue,
-                                    playbackManager: _playbackManager,
-                                  )
+                                ? FavoritesTab(favorites: _favorites, onPlaySong: _playSong, onAddToQueue: _addToQueue, playbackManager: _playbackManager)
                                 : _selectedIndex == 5
                                     ? DownloadTab()
                                     : _selectedIndex == 6
                                         ? SettingsTab()
-                                        : Placeholder(),
+                                        : const Placeholder(),
           ),
-
-          // Music Player
           MusicPlayerControls(
             playbackManager: _playbackManager,
+            equalizerService: _equalizerService,
             onSavePreferences: _savePreferences,
             onTogglePlayPause: _togglePlayPause,
           ),
@@ -660,38 +599,40 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     );
   }
 
-  Widget _buildDrawerItem(IconData icon, String label, int index, {bool useShortLabels = true}) {
-    bool isSelected = _selectedIndex == index;
-    // Use shorter labels for mobile to prevent overflow
-    final bool isMobile = useShortLabels && MediaQuery.of(context).size.width < 600;
-    final displayLabel = isMobile ? _getShortLabel(label) : label;
+  Widget _buildDrawerItem(IconData icon, String label, int index) {
+    final bool isSelected = _selectedIndex == index;
+    final bool isMobile = MediaQuery.of(context).size.width < 600;
 
     return InkWell(
-      onTap: () => setState(() => _selectedIndex = index),
+      borderRadius: BorderRadius.circular(16),
+      onTap: () {
+        setState(() => _selectedIndex = index);
+        if (isMobile) Navigator.pop(context);
+      },
       child: Container(
-        padding: const EdgeInsets.all(12),
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          color: isSelected ? ThemeColorsUtil.primaryColor.withOpacity(0.2) : null,
-          borderRadius: BorderRadius.circular(8),
+          color: isSelected ? ThemeColorsUtil.primaryColor.withOpacity(0.35) : Colors.white.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(16),
+          border: isSelected ? Border.all(color: ThemeColorsUtil.primaryColor.withOpacity(0.5), width: 1.5) : null,
         ),
         child: Row(
           children: [
             Icon(
               icon,
-              color: isSelected ? ThemeColorsUtil.primaryColor : ThemeColorsUtil.textColorSecondary,
-              size: 20,
+              color: isSelected ? Colors.white : Colors.white.withOpacity(0.9),
+              size: 24,
+              shadows: isSelected ? [const Shadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 2))] : null,
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                displayLabel,
-                style: TextStyle(
-                  color: isSelected ? ThemeColorsUtil.primaryColor : ThemeColorsUtil.textColorSecondary,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  fontSize: 14,
-                ),
-                overflow: TextOverflow.ellipsis,
+            const SizedBox(width: 16),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.white.withOpacity(0.95),
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                fontSize: 15,
+                shadows: isSelected ? [const Shadow(blurRadius: 6, color: Colors.black38)] : null,
               ),
             ),
           ],
@@ -700,48 +641,16 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     );
   }
 
-  String _getShortLabel(String label) {
-    switch (label) {
-      case 'Now Playing':
-        return 'Playing';
-      case 'Favorites':
-        return 'Favs';
-      default:
-        return label;
-    }
-  }
-
-
-
-
-
   Future<void> _clearLibrary() async {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: ThemeColorsUtil.surfaceColor,
-        title: Text(
-          'Clear Library',
-          style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
-        ),
-        content: SingleChildScrollView(
-          child: Text(
-            'Are you sure you want to delete all songs from your library?\n\n'
-            'This action cannot be undone.',
-            style: TextStyle(color: ThemeColorsUtil.textColorSecondary),
-          ),
-        ),
+        title: Text('Clear Library', style: TextStyle(color: ThemeColorsUtil.textColorPrimary)),
+        content: Text('Are you sure you want to delete all songs from your library?\n\nThis action cannot be undone.', style: TextStyle(color: ThemeColorsUtil.textColorSecondary)),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            style: TextButton.styleFrom(foregroundColor: ThemeColorsUtil.textColorSecondary),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: ThemeColorsUtil.error),
-            child: const Text('Clear Library'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), style: TextButton.styleFrom(foregroundColor: ThemeColorsUtil.error), child: const Text('Clear Library')),
         ],
       ),
     );
@@ -750,32 +659,13 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
       try {
         await _libraryService.clearLibrary();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Library cleared successfully!',
-              style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
-            ),
-            backgroundColor: ThemeColorsUtil.surfaceColor,
-          ),
+          SnackBar(content: Text('Library cleared successfully!', style: TextStyle(color: ThemeColorsUtil.textColorPrimary)), backgroundColor: ThemeColorsUtil.surfaceColor),
         );
       } catch (e) {
-        print('❌ Error clearing library: $e');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Error clearing library: $e',
-              style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
-            ),
-            backgroundColor: ThemeColorsUtil.error,
-          ),
+          SnackBar(content: Text('Error clearing library: $e', style: TextStyle(color: ThemeColorsUtil.textColorPrimary)), backgroundColor: ThemeColorsUtil.error),
         );
       }
     }
   }
-
-
-
-
-
-
 }

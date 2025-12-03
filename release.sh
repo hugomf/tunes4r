@@ -38,9 +38,9 @@ fi
 if [ "$(uname)" == "Darwin" ]; then
     # Build for iOS
     echo "🍎 Building iOS..."
-    flutter build ios --release --no-codesign
-    if [ -d "build/ios/iphoneos" ]; then
-        zip -r "$RELEASE_DIR/tunes4r-ios-$VERSION.app.zip" "build/ios/iphoneos/Runner.app"
+    flutter build ios --release --no-codesign --simulator
+    if [ -d "build/ios/iphonesimulator" ]; then
+        zip -r "$RELEASE_DIR/tunes4r-ios-$VERSION.app.zip" "build/ios/iphonesimulator/Runner.app"
         echo "✅ iOS App: $RELEASE_DIR/tunes4r-ios-$VERSION.app.zip"
     fi
 
@@ -51,7 +51,22 @@ if [ "$(uname)" == "Darwin" ]; then
     # Create DMG
     echo "📦 Creating macOS DMG..."
     if [ -d "build/macos/Build/Products/Release/tunes4r.app" ]; then
-        create-dmg "tunes4r.dmg" "build/macos/Build/Products/Release/tunes4r.app"
+        TMP_DIR=$(mktemp -d)
+        cp -r "build/macos/Build/Products/Release/tunes4r.app" "$TMP_DIR/"
+
+        create-dmg \
+            --volname "Tunes4R" \
+            --volicon "$TMP_DIR/tunes4r.app/Contents/Resources/AppIcon.icns" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --icon "tunes4r.app" 200 190 \
+            --hide-extension "tunes4r.app" \
+            --app-drop-link 615 185 \
+            "tunes4r.dmg" \
+            "$TMP_DIR"
+
+        rm -rf "$TMP_DIR"
         mv "tunes4r.dmg" "$RELEASE_DIR/tunes4r-macos-$VERSION.dmg"
         echo "✅ macOS DMG: $RELEASE_DIR/tunes4r-macos-$VERSION.dmg"
     fi

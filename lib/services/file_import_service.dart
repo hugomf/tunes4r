@@ -28,15 +28,36 @@ class FileImportService {
       // Step 1: Handle platform-specific permission requirements
       // Skip permission checks on macOS due to plugin compatibility issues
       bool isMacOS = !kIsWeb && Platform.isMacOS;
+      bool isAndroid = !kIsWeb && Platform.isAndroid;
+
       if (isMacOS) {
         print('🎵 Running on macOS - skipping permission checks due to plugin limitations');
       } else {
         print('🎵 Running on ${kIsWeb ? 'web' : Platform.operatingSystem} - attempting permission checks...');
         try {
-          // Only attempt permission checks on platforms where the plugin works
-          final audioPermission = await Permission.audio.status;
-          if (!audioPermission.isGranted) {
-            await Permission.audio.request();
+          if (isAndroid) {
+            // On Android 11+, we need MANAGE_EXTERNAL_STORAGE for full folder access
+            final manageStoragePermission = await Permission.manageExternalStorage.status;
+            print('🎵 MANAGE_EXTERNAL_STORAGE status: ${manageStoragePermission.toString()}');
+
+            if (!manageStoragePermission.isGranted) {
+              print('🎵 Requesting MANAGE_EXTERNAL_STORAGE permission...');
+              final result = await Permission.manageExternalStorage.request();
+              print('🎵 MANAGE_EXTERNAL_STORAGE request result: ${result.toString()}');
+            }
+
+            // Also check audio permissions for file picking
+            final audioPermission = await Permission.audio.status;
+            print('🎵 Audio permission status: ${audioPermission.toString()}');
+            if (!audioPermission.isGranted) {
+              await Permission.audio.request();
+            }
+          } else {
+            // On iOS and other platforms
+            final audioPermission = await Permission.audio.status;
+            if (!audioPermission.isGranted) {
+              await Permission.audio.request();
+            }
           }
         } catch (permissionError) {
           print('🎵 Permission check failed but continuing: $permissionError');
@@ -242,12 +263,69 @@ class FileImportService {
 
   /// Process and import audio files to the database
   Future<int> _importAudioFiles(List<String> filePaths, BuildContext context) async {
-    // Show loading indicator
+    // Show progress dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: ThemeColorsUtil.surfaceColor,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2196F3)),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Importing ${filePaths.length} ${filePaths.length == 1 ? 'music file' : 'music files'}...',
+                style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'This may take a few moments',
+                style: TextStyle(
+                  color: ThemeColorsUtil.textColorSecondary,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    int importedCount = 0;
+
+    try {
+      // Process all audio files
+      final newSongs = await _processAudioFiles(filePaths);
+
+      // Save to database via library service
+      for (var song in newSongs) {
+        await _libraryService.saveSong(song);
+        importedCount++;
+      }
+
+      print('Added $importedCount songs to library');
+    } catch (e) {
+      print('Error during import: $e');
+      // Continue to close dialog and show error
+    }
+
+    // Close the progress dialog
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+
+    // Show completion message
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Adding music files...',
+            'Added $importedCount ${importedCount == 1 ? 'song' : 'songs'} to library!',
             style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
           ),
           backgroundColor: ThemeColorsUtil.surfaceColor,
@@ -255,28 +333,7 @@ class FileImportService {
       );
     }
 
-    // Process all audio files
-    final newSongs = await _processAudioFiles(filePaths);
-
-    // Save to database via library service
-    for (var song in newSongs) {
-      await _libraryService.saveSong(song);
-    }
-
-    print('Added ${newSongs.length} songs to library');
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Added ${newSongs.length} ${newSongs.length == 1 ? 'song' : 'songs'} to library!',
-            style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
-          ),
-          backgroundColor: ThemeColorsUtil.surfaceColor,
-        ),
-      );
-    }
-
-    return newSongs.length;
+    return importedCount;
   }
 
   /// Scan a directory for audio files recursively
@@ -284,18 +341,70 @@ class FileImportService {
     final List<String> audioFiles = [];
     final directory = Directory(dirPath);
 
+    print('🎵 About to scan directory: $dirPath');
+    print('🎵 Directory exists: ${await directory.exists()}');
+
     try {
+      int totalFilesScanned = 0;
+      List<String> foundExtensions = [];
+
+      // Define supported audio file extensions
+      final audioExtensions = ['.mp3', '.m4a', '.aac', '.ogg', '.flac', '.wav', '.wma', '.aiff', '.opus', '.dsd', '.dsdiff', '.m4b', '.m4p'];
+
       await for (var entity in directory.list(recursive: true, followLinks: false)) {
         if (entity is File) {
+          totalFilesScanned++;
+          final fileName = p.basename(entity.path);
           final extension = p.extension(entity.path).toLowerCase();
+
+          // Skip system files and macOS resource fork files
+          if (fileName.startsWith('._')) {
+            print('🎵 Skipping macOS resource fork file: $fileName');
+            continue;
+          }
+
+          // Skip very small files that are likely not actual music
+          try {
+            final fileSize = await entity.length();
+            if (fileSize < 10000) { // Less than 10KB, likely not a real music file
+              print('🎵 Skipping very small file (${(fileSize / 1024).toStringAsFixed(2)} KB): $fileName');
+              continue;
+            }
+          } catch (e) {
+            print('🎵 Could not check file size for $fileName: $e');
+            // Continue anyway
+          }
+
+          // Log first few non-audio files for debugging
+          if (!audioExtensions.contains(extension) && foundExtensions.length < 5) {
+            foundExtensions.add('$extension: ${fileName}');
+          }
+
           // Check for common audio file extensions
-          if (['.mp3', '.m4a', '.aac', '.ogg', '.flac', '.wav', '.wma', '.aiff'].contains(extension)) {
+          if (audioExtensions.contains(extension)) {
             audioFiles.add(entity.path);
           }
+        } else if (entity is Directory) {
+          print('🎵 Found subdirectory: ${entity.path}');
         }
+      }
+
+      print('🎵 Total files scanned: $totalFilesScanned');
+      if (foundExtensions.isNotEmpty) {
+        print('🎵 Sample non-audio files found: $foundExtensions');
       }
     } catch (e) {
       print('Error scanning directory $dirPath: $e');
+      // On Android, if access is denied, try to provide more specific error information
+      if (Platform.isAndroid) {
+        print('🎵 Android directory access issue. Checking permissions...');
+        try {
+          final permission = await Permission.manageExternalStorage.status;
+          print('🎵 MANAGE_EXTERNAL_STORAGE permission status: ${permission.toString()}');
+        } catch (permError) {
+          print('🎵 Could not check external storage permission: $permError');
+        }
+      }
     }
 
     return audioFiles;

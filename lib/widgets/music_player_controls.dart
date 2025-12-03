@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:tunes4r/services/audio_equalizer_service.dart';
 import 'package:tunes4r/services/playback_manager.dart';
 import 'package:tunes4r/utils/theme_colors.dart';
 import 'package:tunes4r/widgets/equalizer_dialog.dart';
 
 class MusicPlayerControls extends StatefulWidget {
   final PlaybackManager playbackManager;
+  final AudioEqualizerService equalizerService;
   final VoidCallback onSavePreferences;
   final Function()? onShowEqualizerDialog;
   final VoidCallback? onTogglePlayPause;
@@ -12,6 +14,7 @@ class MusicPlayerControls extends StatefulWidget {
   const MusicPlayerControls({
     super.key,
     required this.playbackManager,
+    required this.equalizerService,
     required this.onSavePreferences,
     this.onShowEqualizerDialog,
     this.onTogglePlayPause,
@@ -22,9 +25,9 @@ class MusicPlayerControls extends StatefulWidget {
 }
 
 class _MusicPlayerControlsState extends State<MusicPlayerControls> {
-  // Equalizer bands (10-band EQ for professional frequency control)
-  List<double> _eqBands = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-  bool _isEqualizerEnabled = false;
+  // Equalizer bands synced with service
+  List<double> get _eqBands => widget.equalizerService.bands;
+  bool get _isEqualizerEnabled => widget.equalizerService.isEnabled;
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
@@ -39,13 +42,19 @@ class _MusicPlayerControlsState extends State<MusicPlayerControls> {
       builder: (context) => EqualizerDialog(
         initialBands: _eqBands,
         initialEnabled: _isEqualizerEnabled,
+        equalizerService: widget.equalizerService,
       ),
-    ).then((result) {
+    ).then((result) async {
       if (result != null) {
-        setState(() {
-          _eqBands = List<double>.from(result['bands']);
-          _isEqualizerEnabled = result['enabled'];
-        });
+        final bands = List<double>.from(result['bands']);
+        final enabled = result['enabled'] as bool;
+
+        await widget.equalizerService.setEnabled(enabled);
+        if (enabled && bands.isNotEmpty) {
+          await widget.equalizerService.setBands(bands);
+        }
+
+        setState(() {});
       }
     });
   }
