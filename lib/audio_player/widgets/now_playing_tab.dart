@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/playback_manager.dart';
-import '../utils/theme_colors.dart';
+import '../../services/playback_manager.dart';
+import '../../utils/theme_colors.dart';
 import 'dart:math' as math;
 
 class NowPlayingTab extends StatefulWidget {
@@ -42,12 +42,8 @@ class _NowPlayingTabState extends State<NowPlayingTab>
 
   @override
   Widget build(BuildContext context) {
-    // Pause/resume rotation based on playback state
-    if (widget.playbackManager.isPlaying && !_rotationController.isAnimating) {
-      _rotationController.repeat();
-    } else if (!widget.playbackManager.isPlaying && _rotationController.isAnimating) {
-      _rotationController.stop();
-    }
+    // Get current playback state
+    final bool isPlaying = widget.playbackManager.isPlaying;
 
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
@@ -109,7 +105,7 @@ class _NowPlayingTabState extends State<NowPlayingTab>
 
   Widget _buildAlbumArtWithGlow(double size) {
     final currentSong = widget.playbackManager.currentSong;
-    final isPlaying = widget.playbackManager.isPlaying;
+    final bool isPlaying = widget.playbackManager.isPlaying;
     final glowSize = size + 20;
 
     return Stack(
@@ -423,7 +419,7 @@ class _NowPlayingTabState extends State<NowPlayingTab>
 
   Widget _buildPlayPauseButton() {
     final isPlaying = widget.playbackManager.isPlaying;
-    
+
     return Container(
       width: 72,
       height: 72,
@@ -448,7 +444,7 @@ class _NowPlayingTabState extends State<NowPlayingTab>
           onTap: widget.onTogglePlayPause,
           borderRadius: BorderRadius.circular(36),
           child: Icon(
-            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+            isPlaying ? Icons.play_arrow_rounded : Icons.pause_rounded,
             color: Colors.white,
             size: 40,
           ),

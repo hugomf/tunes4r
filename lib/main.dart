@@ -9,15 +9,18 @@ import 'package:tunes4r/services/media_control_service.dart';
 import 'package:tunes4r/services/media_service.dart';
 import 'package:tunes4r/services/permission_service.dart';
 import 'package:tunes4r/services/audio_equalizer_service.dart';
-import 'package:tunes4r/services/playback_manager.dart';
+import 'package:logging/logging.dart';
+import 'package:tunes4r/audio_player/audio_player.dart';
+import 'package:tunes4r/audio_player/playback_commands.dart';
+import 'package:tunes4r/audio_player/logger.dart';
 import 'package:tunes4r/utils/theme_colors.dart';
 import 'package:tunes4r/utils/theme_manager.dart';
 import 'package:tunes4r/widgets/albums_tab.dart';
 import 'package:tunes4r/widgets/download_tab.dart';
 import 'package:tunes4r/widgets/favorites_tab.dart';
 import 'package:tunes4r/widgets/library_tab.dart';
-import 'package:tunes4r/widgets/music_player_controls.dart';
-import 'package:tunes4r/widgets/now_playing_tab.dart';
+import 'package:tunes4r/audio_player/widgets/music_player_controls.dart';
+import 'package:tunes4r/audio_player/widgets/now_playing_tab.dart';
 import 'package:tunes4r/widgets/playlist_state.dart';
 import 'package:tunes4r/widgets/playlist_widget.dart';
 import 'package:tunes4r/widgets/settings_tab.dart';
@@ -26,6 +29,15 @@ enum SearchMode { songs, albums }
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Configure bounded context logger for structured logging
+  AudioPlayerLogger.configure(
+    level: Level.INFO, // INFO for playback events, WARNING for errors, SEVERE for critical issues
+  );
+
+  // Test that logger works
+  AudioPlayerLogger.info('Logger initialized - testing console output');
+
   runApp(const MusicPlayerApp());
 }
 
@@ -63,7 +75,7 @@ class MusicPlayerHome extends StatefulWidget {
 }
 
 class _MusicPlayerHomeState extends State<MusicPlayerHome> {
-  late final PlaybackManager _playbackManager;
+  late final AudioPlayer _audioPlayer;
   late final AudioEqualizerService _equalizerService;
   late final DatabaseService _databaseService;
   late final FileImportService _fileImportService;
@@ -92,53 +104,83 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     );
     _mediaService = MediaService();
     _permissionService = PermissionService();
-    _playbackManager = PlaybackManager();
-    _equalizerService = AudioEqualizerService(_playbackManager);
-    _mediaControlService = MediaControlService(_playbackManager);
+    _audioPlayer = AudioPlayer();
+    _equalizerService = AudioEqualizerService(_audioPlayer);
+    _mediaControlService = MediaControlService(_audioPlayer);
 
-    _playbackManager.initialize(
-      onStateChanged: () {
+    // Initialize audio player with reactive state
+    _audioPlayer.initialize().then((_) {
+      // Listen to state changes for UI updates
+      _audioPlayer.state.listen((state) {
         if (mounted) setState(() {});
-      },
-      onSongChanged: (song) {
-        print('Song changed to: ${song.title}');
-        _mediaControlService.updateMetadata();
-      },
-      onPlaybackStateChangedForMediaControls: () {
-        _mediaControlService.updatePlaybackState();
-      },
-      onPlaybackError: (errorMessage) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Container(
-                decoration: BoxDecoration(
-                  color: ThemeColorsUtil.surfaceColor,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.4),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                      spreadRadius: 2,
+      });
+
+      // Listen to events for specific actions
+      _audioPlayer.events.listen((event) {
+        switch (event.runtimeType) {
+          case SongStartedEvent:
+            final songEvent = event as SongStartedEvent;
+            _mediaControlService.updateMetadata();
+            print('Song changed to: ${songEvent.song.title}');
+            break;
+          case PlaybackErrorEvent:
+            final errorEvent = event as PlaybackErrorEvent;
+            // Log technical error details for debugging (structured logging)
+            AudioPlayerLogger.error('Playback error occurred: ${errorEvent.message}');
+
+            // Parse error message to extract high-level reason for user
+            String userMessage = 'Playback Error';
+            if (errorEvent.message.startsWith('Error playing song')) {
+              userMessage = 'Playback Error: Error playing song';
+            } else if (errorEvent.message.startsWith('Error pausing playback')) {
+              userMessage = 'Playback Error: Error pausing';
+            } else if (errorEvent.message.startsWith('Error resuming playback')) {
+              userMessage = 'Playback Error: Error resuming';
+            } else if (errorEvent.message.startsWith('Error seeking')) {
+              userMessage = 'Playback Error: Error seeking';
+            } else if (errorEvent.message.startsWith('Error stopping playback')) {
+              userMessage = 'Playback Error: Error stopping';
+            } else if (errorEvent.message.contains('file')) {
+              userMessage = 'Playback Error: File error';
+            } else if (errorEvent.message.contains('platform')) {
+              userMessage = 'Playback Error: Platform error';
+            }
+
+            // Show user-friendly message with error context
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Container(
+                    decoration: BoxDecoration(
+                      color: ThemeColorsUtil.surfaceColor,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                          spreadRadius: 2,
+                        ),
+                      ],
                     ),
-                  ],
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Text(
+                      userMessage,
+                      style: TextStyle(color: ThemeColorsUtil.error),
+                    ),
+                  ),
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  behavior: SnackBarBehavior.floating,
+                  margin: const EdgeInsets.all(16),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Text(
-                  'Playback Error: $errorMessage',
-                  style: TextStyle(color: ThemeColorsUtil.error),
-                ),
-              ),
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.all(16),
-            ),
-          );
+              );
+            }
+            break;
+          // Handle other events as needed
         }
-      },
-    );
+      });
+    });
 
     _equalizerService.initialize();
     _initApp().then((_) {
@@ -187,8 +229,8 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
       _prefs = await SharedPreferences.getInstance();
       if (mounted) {
         setState(() {
-          _playbackManager.setShuffling(_prefs?.getBool('isShuffling') ?? false);
-          _playbackManager.setRepeating(_prefs?.getBool('isRepeating') ?? false);
+          _audioPlayer.toggleShuffle(); // Will implement preferences loading later
+          _audioPlayer.toggleRepeat();
         });
       }
     } catch (e) {
@@ -203,11 +245,11 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
       _playlistState!.setDatabase(db);
       _playlistState!.setCallbacks(
         PlaylistCallbacks(
-          addToPlaylist: (song) => _playbackManager.addToQueue(song),
-          addToPlayNext: (song, showSnackbar) => _playbackManager.addToPlayNext(song),
+          addToPlaylist: (song) => _audioPlayer.addToQueue(song),
+          addToPlayNext: (song, showSnackbar) => _audioPlayer.addToPlayNext(song),
           playSong: _playSong,
-          clearQueue: () => _playbackManager.clearQueue(),
-          addSongsToQueue: (songs) => songs.forEach((song) => _playbackManager.addToQueue(song)),
+          clearQueue: () => _audioPlayer.clearQueue(),
+          addSongsToQueue: (songs) => songs.forEach((song) => _audioPlayer.addToQueue(song)),
           showSnackBar: (message) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -250,8 +292,8 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
   Future<void> _savePreferences() async {
     try {
-      await _prefs?.setBool('isShuffling', _playbackManager.isShuffling);
-      await _prefs?.setBool('isRepeating', _playbackManager.isRepeating);
+      await _prefs?.setBool('isShuffling', _audioPlayer.isShuffling);
+      await _prefs?.setBool('isRepeating', _audioPlayer.isRepeating);
     } catch (e) {
       print('Error saving preferences: $e');
     }
@@ -276,12 +318,12 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
         context = _favorites.isNotEmpty ? _favorites : null;
         break;
     }
-    _playbackManager.playSong(song, context: context);
+    _audioPlayer.playSong(song, context: context);
   }
 
   Future<void> _togglePlayPause() async {
-    if (_playbackManager.currentSong != null) {
-      _playbackManager.togglePlayPause();
+    if (_audioPlayer.currentSong != null) {
+      _audioPlayer.togglePlayPause();
       return;
     }
     if (_selectedIndex == 1 && _playlistState != null && !_playlistState!.isManagingPlaylists && _playlistState!.playlist.isNotEmpty) {
@@ -296,24 +338,16 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
       _playFromIndex(_favorites, 0);
       return;
     }
-    _playbackManager.togglePlayPause();
+    _audioPlayer.togglePlayPause();
   }
 
-  void _playNext() => _playbackManager.playNext();
-  void _playPrevious() => _playbackManager.playPrevious();
-  void _addToQueue(Song song) => _playbackManager.addToQueue(song);
-  void _addToPlayNext(Song song) => _playbackManager.addToPlayNext(song);
+  void _playNext() => _audioPlayer.next();
+  void _playPrevious() => _audioPlayer.previous();
+  void _addToQueue(Song song) => _audioPlayer.addToQueue(song);
+  void _addToPlayNext(Song song) => _audioPlayer.addToPlayNext(song);
 
   void _playFromIndex(List<Song> songs, int startIndex) {
-    _playbackManager.startPlaylistPlayback(songs);
-    _playbackManager.clearQueue();
-    final songsToAdd = songs.sublist(startIndex);
-    for (var song in songsToAdd) {
-      _playbackManager.addToQueue(song);
-    }
-    if (songsToAdd.isNotEmpty) {
-      _playbackManager.playSong(songsToAdd.first);
-    }
+    _audioPlayer.startPlaylist(songs, startIndex: startIndex);
   }
 
   Future<void> _toggleFavorite(Song song) async {
@@ -338,7 +372,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
   }
 
   void _scrollToCurrentSong() {
-    final currentSong = _playbackManager.currentSong;
+    final currentSong = _audioPlayer.currentSong;
     if (currentSong == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('No song is currently playing', style: TextStyle(color: ThemeColorsUtil.textColorPrimary)), backgroundColor: ThemeColorsUtil.surfaceColor),
@@ -349,7 +383,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
   @override
   void dispose() {
-    _playbackManager.dispose();
+    _audioPlayer.dispose();
     _libraryService.dispose();
     super.dispose();
   }
@@ -358,11 +392,11 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     if (_playlistState != null) {
       return PlaylistWidget(
         playlistState: _playlistState!,
-        addToPlaylist: (song) => _playbackManager.addToQueue(song),
-        addToPlayNext: (song, showSnackbar) => _playbackManager.addToPlayNext(song),
+        addToPlaylist: (song) => _audioPlayer.addToQueue(song),
+        addToPlayNext: (song, showSnackbar) => _audioPlayer.addToPlayNext(song),
         playSong: _playSong,
         playFromIndex: _playFromIndex,
-        currentSong: _playbackManager.currentSong,
+        currentSong: _audioPlayer.currentSong,
         showSnackBar: (message) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(message, style: TextStyle(color: ThemeColorsUtil.textColorPrimary)), backgroundColor: ThemeColorsUtil.surfaceColor),
@@ -567,21 +601,21 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                     onPickFiles: _pickFiles,
                     onClearLibrary: _clearLibrary,
                     onSongsSelected: _addSelectedSongsToPlaylist,
-                    currentSong: _playbackManager.currentSong,
+                    currentSong: _audioPlayer.currentSong,
                   )
                 : _selectedIndex == 1
                     ? _buildPlaylist()
                     : _selectedIndex == 2
                         ? NowPlayingTab(
-                            playbackManager: _playbackManager,
+                            playbackManager: _audioPlayer,
                             onTogglePlayPause: _togglePlayPause,
                             onPlayNext: _playNext,
                             onPlayPrevious: _playPrevious,
                           )
                         : _selectedIndex == 3
-                            ? AlbumsTab(library: _library, onPlaySong: _playSong, playbackManager: _playbackManager)
+                            ? AlbumsTab(library: _library, onPlaySong: _playSong, playbackManager: _audioPlayer)
                             : _selectedIndex == 4
-                                ? FavoritesTab(favorites: _favorites, onPlaySong: _playSong, onAddToQueue: _addToQueue, playbackManager: _playbackManager)
+                                ? FavoritesTab(favorites: _favorites, onPlaySong: _playSong, onAddToQueue: _addToQueue, playbackManager: _audioPlayer)
                                 : _selectedIndex == 5
                                     ? DownloadTab()
                                     : _selectedIndex == 6
@@ -589,7 +623,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                                         : const Placeholder(),
           ),
           MusicPlayerControls(
-            playbackManager: _playbackManager,
+            playbackManager: _audioPlayer,
             equalizerService: _equalizerService,
             onSavePreferences: _savePreferences,
             onTogglePlayPause: _togglePlayPause,

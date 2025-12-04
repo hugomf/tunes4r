@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tunes4r/services/audio_equalizer_service.dart';
-import 'package:tunes4r/services/playback_manager.dart';
+import 'package:tunes4r/services/playback_manager.dart' show AudioPlayer, PlaybackManager;
 import 'package:tunes4r/utils/theme_colors.dart';
-import 'package:tunes4r/widgets/equalizer_dialog.dart';
+import 'equalizer_dialog.dart';
 
 class MusicPlayerControls extends StatefulWidget {
   final PlaybackManager playbackManager;
@@ -78,15 +78,17 @@ class _MusicPlayerControlsState extends State<MusicPlayerControls> {
               ),
               Expanded(
                 child: Slider(
-                  value: widget.playbackManager.position.inSeconds.toDouble().clamp(0.0, double.maxFinite),
-                  max: (widget.playbackManager.position.inSeconds > widget.playbackManager.duration.inSeconds
-                       ? widget.playbackManager.position.inSeconds
-                       : widget.playbackManager.duration.inSeconds).toDouble().clamp(1.0, double.maxFinite),
+                  value: widget.playbackManager.position.inSeconds.toDouble(),
+                  max: widget.playbackManager.duration.inSeconds > 0
+                       ? widget.playbackManager.duration.inSeconds.toDouble()
+                       : 1.0,
                   activeColor: ThemeColorsUtil.seekBarActiveColor,
                   inactiveColor: ThemeColorsUtil.seekBarInactiveColor,
-                  onChanged: (value) async {
-                    widget.playbackManager.seekTo(Duration(seconds: value.toInt()));
-                  },
+                  onChanged: widget.playbackManager.duration.inSeconds > 0
+                      ? (value) async {
+                          widget.playbackManager.seekTo(Duration(seconds: value.toInt()));
+                        }
+                      : null,
                 ),
               ),
               Text(
@@ -146,10 +148,10 @@ class _MusicPlayerControlsState extends State<MusicPlayerControls> {
                         constraints: const BoxConstraints(),
                         padding: EdgeInsets.zero,
                         iconSize: 20,
-                        icon: Icon(
-                          widget.playbackManager.isPlaying ? Icons.pause : Icons.play_arrow,
-                          color: ThemeColorsUtil.scaffoldBackgroundColor,
-                        ),
+                  icon: Icon(
+                    widget.playbackManager.isPlaying ? Icons.play_arrow : Icons.pause,
+                    color: ThemeColorsUtil.scaffoldBackgroundColor,
+                  ),
                         onPressed: widget.onTogglePlayPause ?? widget.playbackManager.togglePlayPause,
                         tooltip: 'Play/Pause',
                       ),
@@ -229,7 +231,7 @@ class _MusicPlayerControlsState extends State<MusicPlayerControls> {
                   padding: const EdgeInsets.all(16),
                   iconSize: 32,
                   icon: Icon(
-                    widget.playbackManager.isPlaying ? Icons.pause : Icons.play_arrow,
+                    widget.playbackManager.isPlaying ? Icons.play_arrow : Icons.pause,
                     color: ThemeColorsUtil.scaffoldBackgroundColor,
                   ),
                   onPressed: widget.onTogglePlayPause ?? widget.playbackManager.togglePlayPause,
