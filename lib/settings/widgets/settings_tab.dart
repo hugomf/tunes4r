@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../utils/theme_colors.dart';
-import '../../utils/theme_manager.dart';
+import '../../theme/theme.dart';
+import '../../models/theme_config.dart';
 
 class SettingsTab extends StatefulWidget {
-  const SettingsTab({super.key});
+  final ThemeManager themeManager;
+
+  const SettingsTab({super.key, required this.themeManager});
 
   @override
   State<SettingsTab> createState() => _SettingsTabState();
@@ -40,9 +43,7 @@ class _SettingsTabState extends State<SettingsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final themeManager = ThemeManager();
-    final availableThemes = themeManager.getThemes();
-    final currentTheme = ThemeManager().getCurrentTheme();
+    final themeManager = widget.themeManager;
 
     return Container(
       color: ThemeColorsUtil.scaffoldBackgroundColor,
@@ -50,17 +51,17 @@ class _SettingsTabState extends State<SettingsTab> {
         builder: (context, constraints) {
           // Responsive Logic: Calculate columns based on width
           const double minCardWidth = 220.0;
-          
+
           // Calculate how many columns can fit, ensuring each column is at least minCardWidth.
           int gridColumns = (constraints.maxWidth / (minCardWidth + 16.0)).floor();
-          
+
           // Enforce minimum of 1 column and maximum of 5.
           if (gridColumns < 1) gridColumns = 1;
           if (gridColumns > 5) gridColumns = 5;
-          
+
           // If the screen width is very small, we constrain the ListView
           double maxListWidth = constraints.maxWidth > 1400 ? 1400 : constraints.maxWidth;
-          
+
           return Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxListWidth),
@@ -69,25 +70,25 @@ class _SettingsTabState extends State<SettingsTab> {
                 children: [
                   // --- Header Section: Media Controls ---
                   _buildSectionHeader(
-                    '🎵 Media Controls', 
+                    '🎵 Media Controls',
                     'Manage permissions for external devices'
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // --- Media Controls Card ---
                   // Pass constraints down to decide padding
-                  _buildMediaControlCard(constraints.maxWidth), 
-                  
+                  _buildMediaControlCard(constraints.maxWidth),
+
                   const SizedBox(height: 40),
 
                   // --- Theme Header ---
                   _buildSectionHeader(
-                    '🎨 Appearance', 
+                    '🎨 Appearance',
                     'Choose a theme that fits your vibe'
                   ),
                   const SizedBox(height: 24),
 
-                  // --- Responsive Grid ---
+                  // --- Responsive Grid with Direct Theme Access ---
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -95,15 +96,15 @@ class _SettingsTabState extends State<SettingsTab> {
                       crossAxisCount: gridColumns,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
-                      childAspectRatio: 0.85, 
+                      childAspectRatio: 0.85,
                     ),
-                    itemCount: availableThemes.length,
+                    itemCount: themeManager.availableThemes.length,
                     itemBuilder: (context, index) {
-                      final themeName = availableThemes.keys.elementAt(index);
-                      final theme = availableThemes[themeName]!;
-                      final isSelected = currentTheme?.name == theme.name;
+                      final themeName = themeManager.availableThemes.keys.elementAt(index);
+                      final theme = themeManager.availableThemes[themeName]!;
+                      final isSelected = themeManager.currentTheme?.name == theme.name;
 
-                      return _buildThemeCard(themeName, theme, isSelected, constraints.maxWidth); // Pass screen width
+                      return _buildThemeCard(themeName, theme, isSelected, constraints.maxWidth, themeManager);
                     },
                   ),
                   
@@ -262,15 +263,15 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 
   /// Builds the theme card with the "Mini-UI" preview.
-  Widget _buildThemeCard(String themeName, dynamic theme, bool isSelected, double screenWidth) {
+  Widget _buildThemeCard(String themeName, ThemeConfig theme, bool isSelected, double screenWidth, ThemeManager themeManager) {
     const double cardBreakpoint = 300;
     final bool isVerySmallCard = screenWidth < cardBreakpoint;
 
     return GestureDetector(
       onTap: () {
-        setState(() {
-          ThemeManager().setTheme(themeName);
-        });
+        themeManager.switchTheme(themeName);
+        // Force UI update using setState from parent widget
+        setState(() {}); // Trigger rebuild to show selection
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

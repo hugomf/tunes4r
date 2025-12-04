@@ -9,6 +9,17 @@ class FavoritesTab extends StatelessWidget {
   final Function(Song) onAddToQueue;
   final PlaybackManager playbackManager;
 
+  /// Public playback methods - each UI context knows its own playlist
+  void contextPlaySong(Song song) => onPlaySong(song);  // Plays with favorites context
+
+  Future<void> contextTogglePlayPause() async {
+    // If nothing is playing and we have favorites, start from the beginning
+    if (playbackManager.currentSong == null && favorites.isNotEmpty) {
+      playbackManager.startPlaylist(favorites, startIndex: 0);
+    }
+    // Otherwise, just toggle (this would be handled by the controls)
+  }
+
   const FavoritesTab({
     super.key,
     required this.favorites,

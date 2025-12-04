@@ -6,7 +6,6 @@ import 'equalizer_dialog.dart';
 
 class MusicPlayerControls extends StatefulWidget {
   final PlaybackManager playbackManager;
-  final AudioEqualizerService equalizerService;
   final VoidCallback onSavePreferences;
   final Function()? onShowEqualizerDialog;
   final VoidCallback? onTogglePlayPause;
@@ -14,7 +13,6 @@ class MusicPlayerControls extends StatefulWidget {
   const MusicPlayerControls({
     super.key,
     required this.playbackManager,
-    required this.equalizerService,
     required this.onSavePreferences,
     this.onShowEqualizerDialog,
     this.onTogglePlayPause,
@@ -25,9 +23,9 @@ class MusicPlayerControls extends StatefulWidget {
 }
 
 class _MusicPlayerControlsState extends State<MusicPlayerControls> {
-  // Equalizer bands synced with service
-  List<double> get _eqBands => widget.equalizerService.bands;
-  bool get _isEqualizerEnabled => widget.equalizerService.isEnabled;
+  // Equalizer bands synced with service through AudioPlayer
+  List<double> get _eqBands => (widget.playbackManager as AudioPlayer).equalizerService.bands;
+  bool get _isEqualizerEnabled => (widget.playbackManager as AudioPlayer).equalizerService.isEnabled;
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
@@ -37,21 +35,22 @@ class _MusicPlayerControlsState extends State<MusicPlayerControls> {
   }
 
   void _showEqualizerDialog() {
+    final equalizerService = (widget.playbackManager as AudioPlayer).equalizerService;
     showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => EqualizerDialog(
         initialBands: _eqBands,
         initialEnabled: _isEqualizerEnabled,
-        equalizerService: widget.equalizerService,
+        equalizerService: equalizerService,
       ),
     ).then((result) async {
       if (result != null) {
         final bands = List<double>.from(result['bands']);
         final enabled = result['enabled'] as bool;
 
-        await widget.equalizerService.setEnabled(enabled);
+        await equalizerService.setEnabled(enabled);
         if (enabled && bands.isNotEmpty) {
-          await widget.equalizerService.setBands(bands);
+          await equalizerService.setBands(bands);
         }
 
         setState(() {});
@@ -148,10 +147,10 @@ class _MusicPlayerControlsState extends State<MusicPlayerControls> {
                         constraints: const BoxConstraints(),
                         padding: EdgeInsets.zero,
                         iconSize: 20,
-                  icon: Icon(
-                    widget.playbackManager.isPlaying ? Icons.play_arrow : Icons.pause,
-                    color: ThemeColorsUtil.scaffoldBackgroundColor,
-                  ),
+                        icon: Icon(
+                          widget.playbackManager.isPlaying ? Icons.pause : Icons.play_arrow,
+                          color: ThemeColorsUtil.scaffoldBackgroundColor,
+                        ),
                         onPressed: widget.onTogglePlayPause ?? widget.playbackManager.togglePlayPause,
                         tooltip: 'Play/Pause',
                       ),
@@ -231,7 +230,7 @@ class _MusicPlayerControlsState extends State<MusicPlayerControls> {
                   padding: const EdgeInsets.all(16),
                   iconSize: 32,
                   icon: Icon(
-                    widget.playbackManager.isPlaying ? Icons.play_arrow : Icons.pause,
+                    widget.playbackManager.isPlaying ? Icons.pause : Icons.play_arrow,
                     color: ThemeColorsUtil.scaffoldBackgroundColor,
                   ),
                   onPressed: widget.onTogglePlayPause ?? widget.playbackManager.togglePlayPause,

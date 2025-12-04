@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../models/song.dart';
 import '../../services/playback_manager.dart';
 import '../../utils/theme_colors.dart';
 import 'dart:math' as math;
@@ -39,6 +40,11 @@ class _NowPlayingTabState extends State<NowPlayingTab>
     _rotationController.dispose();
     super.dispose();
   }
+
+  /// Public playback methods - NowPlayingTab handles current song playback
+  void contextPlaySong(Song song) => widget.playbackManager.playSong(song);
+
+  Future<void> contextTogglePlayPause() async => await widget.playbackManager.togglePlayPause();
 
   @override
   Widget build(BuildContext context) {
@@ -154,24 +160,24 @@ class _NowPlayingTabState extends State<NowPlayingTab>
                 height: size,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.black87,
+                  color: ThemeColorsUtil.textColorPrimary.withOpacity(0.8),
                 ),
                 child: _buildAlbumArt(size),
               ),
-              // Center label (black circle in the middle like real vinyl)
+              // Center label (vinyl center like real vinyl records)
               Container(
                 width: size * 0.32,
                 height: size * 0.32,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.black,
+                  color: ThemeColorsUtil.textColorPrimary,
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.3),
+                    color: ThemeColorsUtil.scaffoldBackgroundColor.withOpacity(0.8),
                     width: 1,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.5),
+                      color: ThemeColorsUtil.textColorPrimary.withOpacity(0.8),
                       blurRadius: 10,
                       spreadRadius: 1,
                     ),
@@ -183,7 +189,7 @@ class _NowPlayingTabState extends State<NowPlayingTab>
                     height: size * 0.055,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white.withOpacity(0.2),
+                      color: ThemeColorsUtil.scaffoldBackgroundColor.withOpacity(0.4),
                     ),
                   ),
                 ),
@@ -210,7 +216,7 @@ class _NowPlayingTabState extends State<NowPlayingTab>
             spreadRadius: 5,
           ),
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: ThemeColorsUtil.textColorPrimary.withOpacity(0.6),
             blurRadius: 20,
             spreadRadius: 2,
           ),
@@ -445,7 +451,7 @@ class _NowPlayingTabState extends State<NowPlayingTab>
           borderRadius: BorderRadius.circular(36),
           child: Icon(
             isPlaying ? Icons.play_arrow_rounded : Icons.pause_rounded,
-            color: Colors.white,
+            color: ThemeColorsUtil.iconPrimary,
             size: 40,
           ),
         ),

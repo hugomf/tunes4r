@@ -1,66 +1,77 @@
 import 'package:flutter/material.dart';
-import 'theme_manager.dart';
+import '../settings/settings.dart';
+import '../theme/theme.dart';
+
+// Cache the shared theme manager to avoid creating Settings instances repeatedly
+ThemeManager? _cachedThemeManager;
+
+ThemeManager _getThemeManager() {
+  // Use cached instance if available
+  _cachedThemeManager ??= Settings().getSharedThemeManager();
+  return _cachedThemeManager!;
+}
 
 /// Utility functions to get theme colors dynamically
+/// Now uses shared ThemeManager from Settings for hot reload compatibility
 class ThemeColorsUtil {
   static Color get scaffoldBackgroundColor {
-    return ThemeManager().getCurrentColors()?.scaffoldBackground ?? const Color(0xFFFBF1C7);
+    return _getThemeManager().currentColors?.scaffoldBackground ?? const Color(0xFFFBF1C7);
   }
 
   static Color get primaryColor {
-    return ThemeManager().getCurrentColors()?.primary ?? const Color(0xFFB57614);
+    return _getThemeManager().currentColors?.primary ?? const Color(0xFFB57614);
   }
 
   static Color get secondaryColor {
-    return ThemeManager().getCurrentColors()?.secondary ?? const Color(0xFF79740E);
+    return _getThemeManager().currentColors?.secondary ?? const Color(0xFF79740E);
   }
 
   static Color get surfaceColor {
-    return ThemeManager().getCurrentColors()?.surfacePrimary ?? const Color(0xFFEBDBB2);
+    return _getThemeManager().currentColors?.surfacePrimary ?? const Color(0xFFEBDBB2);
   }
 
   static Color get textColorPrimary {
-    return ThemeManager().getCurrentColors()?.textPrimary ?? const Color(0xFF3C3836);
+    return _getThemeManager().currentColors?.textPrimary ?? const Color(0xFF3C3836);
   }
 
   static Color get textColorSecondary {
-    return ThemeManager().getCurrentColors()?.textSecondary ?? const Color(0xFF7C6F64);
+    return _getThemeManager().currentColors?.textSecondary ?? const Color(0xFF7C6F64);
   }
 
   static Color get secondary {
-    return ThemeManager().getCurrentColors()?.secondary ?? const Color(0xFF79740E);
+    return _getThemeManager().currentColors?.secondary ?? const Color(0xFF79740E);
   }
 
   static Color get error {
-    return ThemeManager().getCurrentColors()?.error ?? const Color(0xFFCC241D);
+    return _getThemeManager().currentColors?.error ?? const Color(0xFFCC241D);
   }
 
   static Color get appBarBackgroundColor {
-    return ThemeManager().getCurrentColors()?.appBarBackground ?? const Color(0xFFEBDBB2);
+    return _getThemeManager().currentColors?.appBarBackground ?? const Color(0xFFEBDBB2);
   }
 
   static Color get iconPrimary {
-    return ThemeManager().getCurrentColors()?.iconPrimary ?? const Color(0xFFFFFFFF);
+    return _getThemeManager().currentColors?.iconPrimary ?? const Color(0xFFFFFFFF);
   }
 
   static Color get iconSecondary {
-    return ThemeManager().getCurrentColors()?.iconSecondary ?? const Color(0xFFFFFFFF);
+    return _getThemeManager().currentColors?.iconSecondary ?? const Color(0xFFFFFFFF);
   }
 
   static Color get iconDisabled {
-    return ThemeManager().getCurrentColors()?.iconDisabled ?? const Color(0xFF7C6F64);
+    return _getThemeManager().currentColors?.iconDisabled ?? const Color(0xFF7C6F64);
   }
 
   static Color get seekBarActiveColor {
-    return ThemeManager().getCurrentColors()?.seekBarActive ?? const Color(0xFFB57614);
+    return _getThemeManager().currentColors?.seekBarActive ?? const Color(0xFFB57614);
   }
 
   static Color get seekBarInactiveColor {
-    return ThemeManager().getCurrentColors()?.seekBarInactive ?? const Color(0xFFEBDBB2);
+    return _getThemeManager().currentColors?.seekBarInactive ?? const Color(0xFFEBDBB2);
   }
 
   static List<Color> get spectrumColors {
-    final colors = ThemeManager().getCurrentColors();
+    final colors = _getThemeManager().currentColors;
     if (colors != null) {
       return [colors.spectrumPrimary, colors.spectrumSecondary];
     }
@@ -68,7 +79,7 @@ class ThemeColorsUtil {
   }
 
   static List<Color> get albumGradient {
-    final colors = ThemeManager().getCurrentColors();
+    final colors = _getThemeManager().currentColors;
     if (colors != null) {
       return [colors.gradientStart, colors.gradientEnd];
     }

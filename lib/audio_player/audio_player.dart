@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:io';
 import 'package:just_audio/just_audio.dart' hide PlaybackEvent;
+import 'package:logging/logging.dart';
+import 'package:tunes4r/services/audio_equalizer_service.dart';
+import 'package:tunes4r/services/media_control_service.dart';
 import 'playback_state.dart';
 import 'playback_commands.dart';
 import 'playback_actions.dart';
@@ -37,9 +40,32 @@ class AudioPlayer {
     return AudioPlayer._(platformService);
   }
 
+// Core services - INTERNAL to the bounded context
+  late final AudioEqualizerService _audioEqualizerService;
+  late final MediaControlService _mediaControlService;
+
   /// Initialize the audio player
   Future<void> initialize() async {
+    // Configure logger for this bounded context - INTERNAL concern
+    AudioPlayerLogger.configure(
+      level: Level.INFO, // INFO for playback events, WARNING for errors, SEVERE for critical issues
+    );
+
     await _platformService.initialize();
+
+    // Initialize services - encapsulated within the bounded context
+    _audioEqualizerService = AudioEqualizerService(this);
+    await _audioEqualizerService.initialize();
+
+    _mediaControlService = MediaControlService(this);
+
+    // Subscribe to our own events for media control updates
+    _eventController.stream.listen((event) {
+      if (event is SongStartedEvent) {
+        _mediaControlService.updateMetadata();
+        AudioPlayerLogger.info('Updated media control metadata for: ${event.song.title}');
+      }
+    });
 
     // Subscribe to platform streams for state synchronization
     _platformService.positionStream.listen((position) {
@@ -84,6 +110,7 @@ class AudioPlayer {
   Future<void> dispose() async {
     _spectrumTimer?.cancel();
     await _platformService.dispose();
+    _mediaControlService.dispose();
     await _stateController.close();
     await _eventController.close();
   }
@@ -333,6 +360,15 @@ class AudioPlayer {
   Future<void> playPrevious() async => await previous();
   void startPlaylistPlayback(List<Song> playlist) => startPlaylist(playlist);
   void endPlaylistPlayback() => endPlaylist();
+
+  /// Equalizer access - exposed through bounded context interface
+  AudioEqualizerService get equalizerService => _audioEqualizerService;
+
+  // Equalizer delegate methods for cleaner interface (optional)
+  List<double> get equalizerBands => _audioEqualizerService.bands;
+  Future<void> setEqualizerBands(List<double> bands) => _audioEqualizerService.setBands(bands);
+  Future<void> setEqualizerBandsRealtime(List<double> bands) => _audioEqualizerService.setBandsRealtime(bands);
+  Future<void> toggleEqualizerEnabled(bool enabled) => _audioEqualizerService.toggleEnabled(enabled);
 
   /// Private methods
 

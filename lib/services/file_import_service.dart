@@ -10,14 +10,20 @@ import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:tunes4r/models/song.dart';
 import 'package:tunes4r/services/database_service.dart';
 import 'package:tunes4r/services/library_service.dart';
+import 'package:tunes4r/library/library.dart';
 import 'package:tunes4r/utils/theme_colors.dart';
+import 'package:tunes4r/library/library_commands.dart';
 
 class FileImportService {
   final DatabaseService _databaseService;
   final LibraryService _libraryService;
+  final Library? _libraryContext;
 
-  FileImportService(this._databaseService, {LibraryService? libraryService})
-      : _libraryService = libraryService ?? LibraryService(_databaseService);
+  FileImportService(this._databaseService, {
+    LibraryService? libraryService,
+    Library? libraryContext
+  }) : _libraryService = libraryService ?? LibraryService(_databaseService),
+       _libraryContext = libraryContext;
 
   /// Main entry point for file import process
   /// Returns the number of songs added, or -1 if cancelled
@@ -303,13 +309,22 @@ class FileImportService {
       // Process all audio files
       final newSongs = await _processAudioFiles(filePaths);
 
-      // Save to database via library service
-      for (var song in newSongs) {
-        await _libraryService.saveSong(song);
-        importedCount++;
+      // Save to database via bounded context (preferred) or library service (fallback)
+      if (_libraryContext != null) {
+        // Use bounded context - this will trigger reactive updates
+        for (var song in newSongs) {
+          await _libraryContext!.saveSong(song);
+          importedCount++;
+        }
+      } else {
+        // Fallback to direct library service
+        for (var song in newSongs) {
+          await _libraryService.saveSong(song);
+          importedCount++;
+        }
       }
 
-      print('Added $importedCount songs to library');
+      print('Added $importedCount songs to library via ${this._libraryContext != null ? 'bounded context' : 'library service'}');
     } catch (e) {
       print('Error during import: $e');
       // Continue to close dialog and show error

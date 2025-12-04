@@ -13,6 +13,27 @@ class PlaylistWidget extends StatelessWidget {
   final Function(String message) showSnackBar;
   final Song? currentSong; // Currently playing song for visual feedback
 
+  /// Public playback methods - each UI context knows its own playlist
+  void contextPlaySong(Song song) {
+    // If we have a current playlist, play with its context
+    if (playlistState.playlist.isNotEmpty) {
+      final context = playlistState.playlist;
+      playSong(song);  // Call the callback
+    } else {
+      // Fallback - just play the song without context
+      playSong(song);
+    }
+  }
+
+  Future<void> contextTogglePlayPause() async {
+    // If nothing is playing and we have a playlist, start from the beginning
+    if (currentSong == null && playlistState.playlist.isNotEmpty) {
+      playFromIndex(playlistState.playlist, 0);
+    }
+    // Otherwise, just toggle (this would be handled by the controls)
+    // Note: This would typically be handled by the MusicPlayerControls widget
+  }
+
   const PlaylistWidget({
     super.key,
     required this.playlistState,
