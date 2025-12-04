@@ -1,7 +1,7 @@
 /// Legacy class for backward compatibility
 /// AudioPlayer now provides the PlaybackManager interface
 
-import '../audio_player/audio_player.dart';
+import 'package:tunes4r/audio_player/audio_player.dart';
 
 // Export AudioPlayer as the main class
 export '../audio_player/audio_player.dart';

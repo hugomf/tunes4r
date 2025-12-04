@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../../models/song.dart';
+import 'package:tunes4r/models/song.dart';
 
 class DownloadService {
   final String baseUrl;

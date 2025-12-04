@@ -1,6 +1,6 @@
 import 'library_state.dart';
 import 'library_commands.dart';
-import '../../models/song.dart';
+import 'package:tunes4r/models/song.dart';
 
 /// Pure functions that transform LibraryState based on commands
 /// No side effects, just state transformations

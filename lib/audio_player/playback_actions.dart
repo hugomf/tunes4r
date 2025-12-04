@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'playback_state.dart';
 import 'playback_commands.dart';
-import '../../models/song.dart';
+import 'package:tunes4r/models/song.dart';
 
 /// Pure functions that transform PlaybackState based on commands
 /// No side effects, just state transformations

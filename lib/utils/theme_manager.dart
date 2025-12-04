@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:toml/toml.dart';
 
-import '../models/theme_config.dart';
+import 'package:tunes4r/models/theme_config.dart';
 
 /// Manages theme loading and switching
 class ThemeManager {

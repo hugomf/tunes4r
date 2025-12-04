@@ -4,7 +4,7 @@ import 'settings_commands.dart';
 import 'settings_state.dart';
 import 'widgets/settings_tab.dart';
 
-import '../../theme/theme.dart';
+import 'package:tunes4r/theme/theme.dart';
 
 /// Settings Bounded Context
 /// Manages settings-related functionality and state

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../settings/settings.dart';
-import '../theme/theme.dart';
+import 'package:tunes4r/settings/settings.dart';
+import 'package:tunes4r/theme/theme.dart';
 
 // Cache the shared theme manager to avoid creating Settings instances repeatedly
 ThemeManager? _cachedThemeManager;

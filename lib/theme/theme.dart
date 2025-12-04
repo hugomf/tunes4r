@@ -1,7 +1,7 @@
 // Now using ChangeNotifier for hot reload compatibility - this is safe because
 // we use a shared instance managed by Settings bounded context
 import 'package:flutter/material.dart';
-import '../../models/theme_config.dart';
+import 'package:tunes4r/models/theme_config.dart';
 import 'theme_actions.dart';
 
 /// Theme manager with ChangeNotifier for MaterialApp theme rebuilding on hot reload

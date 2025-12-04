@@ -1,4 +1,4 @@
-import '../../models/song.dart';
+import 'package:tunes4r/models/song.dart';
 import 'playback_state.dart';
 
 /// Base class for all playback commands that can change state

@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import '../../models/song.dart';
+import 'package:tunes4r/models/song.dart';
 
 /// Immutable representation of the complete audio playback state
 @immutable

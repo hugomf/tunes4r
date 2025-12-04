@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/services.dart';
-import '../models/song.dart';
+import 'package:tunes4r/models/song.dart';
 
 /// Enum representing the various states of audio playback
 enum PlaybackState {

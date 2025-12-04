@@ -1,5 +1,7 @@
 
-import '../../models/song.dart';
+
+
+import 'package:tunes4r/models/song.dart';
 
 /// Statistics about the library
 class LibraryStatistics {

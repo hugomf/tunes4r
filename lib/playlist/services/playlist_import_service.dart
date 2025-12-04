@@ -1,10 +1,10 @@
 import 'dart:io';
 import '../models/playlist_import.dart';
 import '../models/playlist.dart';
-import '../../../models/song.dart';
+import 'package:tunes4r/models/song.dart';
 import 'playlist_parser.dart';
-import '../../../services/song_matcher.dart';
-import '../../../services/metadata_enricher.dart';
+import 'package:tunes4r/services/song_matcher.dart';
+import 'package:tunes4r/services/metadata_enricher.dart';
 
 // Main service for importing playlists
 class PlaylistImportService {

@@ -1,4 +1,4 @@
-import '../../models/song.dart';
+import 'package:tunes4r/models/song.dart';
 
 /// Domain events emitted by the Library bounded context
 abstract class LibraryEvent {

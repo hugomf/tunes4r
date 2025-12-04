@@ -1,4 +1,4 @@
-import '../../models/theme_config.dart';
+import 'package:tunes4r/models/theme_config.dart';
 
 /// State of the Theme bounded context
 class ThemeState {

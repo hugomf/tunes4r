@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../utils/theme_colors.dart';
-import '../../theme/theme.dart';
-import '../../models/theme_config.dart';
+import 'package:tunes4r/utils/theme_colors.dart';
+import 'package:tunes4r/theme/theme.dart';
+import 'package:tunes4r/models/theme_config.dart';
 
 class SettingsTab extends StatefulWidget {
   final ThemeManager themeManager;

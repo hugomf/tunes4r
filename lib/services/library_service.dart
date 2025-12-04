@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../models/song.dart';
+import 'package:tunes4r/models/song.dart';
 import 'database_service.dart';
-import '../utils/theme_colors.dart';
+import 'package:tunes4r/utils/theme_colors.dart';
 
 /// Service for managing the music library and favorites
 class LibraryService {

@@ -10,7 +10,7 @@ import 'playback_commands.dart';
 import 'playback_actions.dart';
 import 'audio_platform_service.dart';
 import 'logger.dart';
-import '../../models/song.dart';
+import 'package:tunes4r/models/song.dart';
 
 /// Main bounded context class for audio playback
 /// Encapsulates all playback-related functionality in a single component

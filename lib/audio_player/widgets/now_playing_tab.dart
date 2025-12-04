@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../models/song.dart';
-import '../../services/playback_manager.dart';
-import '../../utils/theme_colors.dart';
+import 'package:tunes4r/models/song.dart';
+import 'package:tunes4r/services/playback_manager.dart';
+import 'package:tunes4r/utils/theme_colors.dart';
 import 'dart:math' as math;
 
 class NowPlayingTab extends StatefulWidget {

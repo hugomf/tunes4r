@@ -1,5 +1,5 @@
 /// Represents a music album grouping multiple songs
-import '../models/song.dart';
+import 'package:tunes4r/models/song.dart';
 
 class Album {
   final String name;
