@@ -15,7 +15,8 @@ ThemeManager _getThemeManager() {
 /// Now uses shared ThemeManager from Settings for hot reload compatibility
 class ThemeColorsUtil {
   static Color get scaffoldBackgroundColor {
-    return _getThemeManager().currentColors?.scaffoldBackground ?? const Color(0xFFFBF1C7);
+    return _getThemeManager().currentColors?.scaffoldBackground ??
+        const Color(0xFFFBF1C7);
   }
 
   static Color get primaryColor {
@@ -23,23 +24,28 @@ class ThemeColorsUtil {
   }
 
   static Color get secondaryColor {
-    return _getThemeManager().currentColors?.secondary ?? const Color(0xFF79740E);
+    return _getThemeManager().currentColors?.secondary ??
+        const Color(0xFF79740E);
   }
 
   static Color get surfaceColor {
-    return _getThemeManager().currentColors?.surfacePrimary ?? const Color(0xFFEBDBB2);
+    return _getThemeManager().currentColors?.surfacePrimary ??
+        const Color(0xFFEBDBB2);
   }
 
   static Color get textColorPrimary {
-    return _getThemeManager().currentColors?.textPrimary ?? const Color(0xFF3C3836);
+    return _getThemeManager().currentColors?.textPrimary ??
+        const Color(0xFF3C3836);
   }
 
   static Color get textColorSecondary {
-    return _getThemeManager().currentColors?.textSecondary ?? const Color(0xFF7C6F64);
+    return _getThemeManager().currentColors?.textSecondary ??
+        const Color(0xFF7C6F64);
   }
 
   static Color get secondary {
-    return _getThemeManager().currentColors?.secondary ?? const Color(0xFF79740E);
+    return _getThemeManager().currentColors?.secondary ??
+        const Color(0xFF79740E);
   }
 
   static Color get error {
@@ -47,27 +53,33 @@ class ThemeColorsUtil {
   }
 
   static Color get appBarBackgroundColor {
-    return _getThemeManager().currentColors?.appBarBackground ?? const Color(0xFFEBDBB2);
+    return _getThemeManager().currentColors?.appBarBackground ??
+        const Color(0xFFEBDBB2);
   }
 
   static Color get iconPrimary {
-    return _getThemeManager().currentColors?.iconPrimary ?? const Color(0xFFFFFFFF);
+    return _getThemeManager().currentColors?.iconPrimary ??
+        const Color(0xFFFFFFFF);
   }
 
   static Color get iconSecondary {
-    return _getThemeManager().currentColors?.iconSecondary ?? const Color(0xFFFFFFFF);
+    return _getThemeManager().currentColors?.iconSecondary ??
+        const Color(0xFFFFFFFF);
   }
 
   static Color get iconDisabled {
-    return _getThemeManager().currentColors?.iconDisabled ?? const Color(0xFF7C6F64);
+    return _getThemeManager().currentColors?.iconDisabled ??
+        const Color(0xFF7C6F64);
   }
 
   static Color get seekBarActiveColor {
-    return _getThemeManager().currentColors?.seekBarActive ?? const Color(0xFFB57614);
+    return _getThemeManager().currentColors?.seekBarActive ??
+        const Color(0xFFB57614);
   }
 
   static Color get seekBarInactiveColor {
-    return _getThemeManager().currentColors?.seekBarInactive ?? const Color(0xFFEBDBB2);
+    return _getThemeManager().currentColors?.seekBarInactive ??
+        const Color(0xFFEBDBB2);
   }
 
   static List<Color> get spectrumColors {

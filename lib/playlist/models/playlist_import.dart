@@ -1,4 +1,4 @@
-import 'song.dart';
+import 'package:tunes4r/models/song.dart';
 
 // Model for tracks parsed from playlist files
 class ImportableTrack {
@@ -31,10 +31,7 @@ class ImportableTrack {
         originalLine: line,
       );
     } else {
-      return ImportableTrack(
-        title: line.trim(),
-        originalLine: line,
-      );
+      return ImportableTrack(title: line.trim(), originalLine: line);
     }
   }
 }
@@ -56,7 +53,8 @@ class MatchResult {
   });
 
   bool get isMatch => confidence != MatchConfidence.none;
-  bool get needsConfirmation => confidence == MatchConfidence.medium || confidence == MatchConfidence.low;
+  bool get needsConfirmation =>
+      confidence == MatchConfidence.medium || confidence == MatchConfidence.low;
 }
 
 // Complete import result for a track
@@ -71,7 +69,8 @@ class TrackImportResult {
     this.alternatives = const [],
   });
 
-  bool get willBeImported => matchResult.isMatch && !matchResult.needsConfirmation;
+  bool get willBeImported =>
+      matchResult.isMatch && !matchResult.needsConfirmation;
   bool get needsConfirmation => matchResult.needsConfirmation;
   bool get notFound => !matchResult.isMatch;
 }
@@ -90,7 +89,8 @@ class PlaylistImportResult {
 
   int get totalTracks => trackResults.length;
   int get autoImported => trackResults.where((r) => r.willBeImported).length;
-  int get needsConfirmation => trackResults.where((r) => r.needsConfirmation).length;
+  int get needsConfirmation =>
+      trackResults.where((r) => r.needsConfirmation).length;
   int get notFound => trackResults.where((r) => r.notFound).length;
 }
 
@@ -99,10 +99,7 @@ class ImportablePlaylist {
   final String name;
   final List<ImportableTrack> tracks;
 
-  const ImportablePlaylist({
-    required this.name,
-    required this.tracks,
-  });
+  const ImportablePlaylist({required this.name, required this.tracks});
 }
 
 // Web metadata enrichment data

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../models/song.dart';
+import '../../models/song.dart';
 
 class DownloadService {
   final String baseUrl;
@@ -21,7 +21,11 @@ class DownloadService {
   }
 
   // Search and download a song
-  Future<Map<String, dynamic>?> searchSong({String? query, String? title, String? artist}) async {
+  Future<Map<String, dynamic>?> searchSong({
+    String? query,
+    String? title,
+    String? artist,
+  }) async {
     if (query != null) {
       // Parse query into title and artist if not provided
       final parts = query.split(' - ');
@@ -45,19 +49,37 @@ class DownloadService {
 
     // Common artist patterns (bands/artists that have multiple words in name)
     final multiWordArtists = [
-      'imagine dragons', 'twenty one pilots', 'the beatles', 'queen band',
-      'led zeppelin', 'pink floyd', 'coldplay', 'arctic monkeys',
-      'the weeknd', 'ed sheeran', 'justin bieber', 'taylor swift',
-      'billie eilish', 'dua lipa', 'ariana grande', 'olivia rodrigo',
-      'the rolling stones', 'guns n roses', 'foo fighters', 'red hot chili peppers'
+      'imagine dragons',
+      'twenty one pilots',
+      'the beatles',
+      'queen band',
+      'led zeppelin',
+      'pink floyd',
+      'coldplay',
+      'arctic monkeys',
+      'the weeknd',
+      'ed sheeran',
+      'justin bieber',
+      'taylor swift',
+      'billie eilish',
+      'dua lipa',
+      'ariana grande',
+      'olivia rodrigo',
+      'the rolling stones',
+      'guns n roses',
+      'foo fighters',
+      'red hot chili peppers',
     ];
 
     // Check for exact multi-word artist matches
     for (final artist in multiWordArtists) {
       if (query.toLowerCase().startsWith(artist)) {
         return {
-          'artist': artist.split(' ').map((word) => word[0].toUpperCase() + word.substring(1)).join(' '),
-          'title': query.substring(artist.length).trim()
+          'artist': artist
+              .split(' ')
+              .map((word) => word[0].toUpperCase() + word.substring(1))
+              .join(' '),
+          'title': query.substring(artist.length).trim(),
         };
       }
     }
@@ -68,10 +90,13 @@ class DownloadService {
       final remainingQuery = query.substring(4).trim(); // Remove "The "
       for (final artist in multiWordArtists) {
         if (artist.startsWith('the ')) continue; // Avoid double "The"
-        if (remainingQuery.toLowerCase().startsWith(artist.replaceFirst('the ', ''))) {
+        if (remainingQuery.toLowerCase().startsWith(
+          artist.replaceFirst('the ', ''),
+        )) {
           return {
-            'artist': 'The ${artist.split(' ').map((word) => word[0].toUpperCase() + word.substring(1)).join(' ')}',
-            'title': remainingQuery.substring(artist.length - 4).trim()
+            'artist':
+                'The ${artist.split(' ').map((word) => word[0].toUpperCase() + word.substring(1)).join(' ')}',
+            'title': remainingQuery.substring(artist.length - 4).trim(),
           };
         }
       }
@@ -84,20 +109,22 @@ class DownloadService {
     if (ftIndex != -1) {
       return {
         'artist': query.substring(0, ftIndex).trim(),
-        'title': query.substring(ftIndex).trim()
+        'title': query.substring(ftIndex).trim(),
       };
     }
 
     if (featIndex != -1) {
       return {
         'artist': query.substring(0, featIndex).trim(),
-        'title': query.substring(featIndex).trim()
+        'title': query.substring(featIndex).trim(),
       };
     }
 
     // Default: if first word is 1-3 words long, treat as artist (common for popular artists)
     if (words.length > 1) {
-      final potentialArtistWordCount = words.length > 2 ? 1 : (words.length - 1).clamp(1, 2);
+      final potentialArtistWordCount = words.length > 2
+          ? 1
+          : (words.length - 1).clamp(1, 2);
 
       // Check if first 1-2 words look like an artist name (capitalize properly)
       final potentialArtistWords = words.sublist(0, potentialArtistWordCount);
@@ -106,17 +133,24 @@ class DownloadService {
       // If remaining words exist and first artist word is properly cased, assume parsed correctly
       if (remainingWords.isNotEmpty && potentialArtistWords[0].length > 1) {
         return {
-          'artist': potentialArtistWords.map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase()).join(' '),
-          'title': remainingWords.map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase()).join(' ')
+          'artist': potentialArtistWords
+              .map(
+                (word) =>
+                    word[0].toUpperCase() + word.substring(1).toLowerCase(),
+              )
+              .join(' '),
+          'title': remainingWords
+              .map(
+                (word) =>
+                    word[0].toUpperCase() + word.substring(1).toLowerCase(),
+              )
+              .join(' '),
         };
       }
     }
 
     // Fallback: put everything as title with unknown artist
-    return {
-      'artist': 'Unknown Artist',
-      'title': query
-    };
+    return {'artist': 'Unknown Artist', 'title': query};
   }
 
   // Download from YouTube URL
@@ -127,15 +161,15 @@ class DownloadService {
   }
 
   // Download a single song
-  Future<Map<String, dynamic>?> downloadSong(String title, String artist) async {
+  Future<Map<String, dynamic>?> downloadSong(
+    String title,
+    String artist,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/download/song'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'title': title,
-          'artist': artist,
-        }),
+        body: json.encode({'title': title, 'artist': artist}),
       );
 
       if (response.statusCode == 200) {
@@ -151,15 +185,15 @@ class DownloadService {
   }
 
   // Download an album
-  Future<Map<String, dynamic>?> downloadAlbum(String artist, String album) async {
+  Future<Map<String, dynamic>?> downloadAlbum(
+    String artist,
+    String album,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/download/album'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'artist': artist,
-          'album': album,
-        }),
+        body: json.encode({'artist': artist, 'album': album}),
       );
 
       if (response.statusCode == 200) {
@@ -177,12 +211,14 @@ class DownloadService {
   }
 
   // Search songs
-  Future<List<Map<String, dynamic>>?> searchSongs(String query, {int limit = 10}) async {
+  Future<List<Map<String, dynamic>>?> searchSongs(
+    String query, {
+    int limit = 10,
+  }) async {
     try {
-      final uri = Uri.parse('$baseUrl/search/songs').replace(queryParameters: {
-        'q': query,
-        'limit': limit.toString(),
-      });
+      final uri = Uri.parse(
+        '$baseUrl/search/songs',
+      ).replace(queryParameters: {'q': query, 'limit': limit.toString()});
 
       final response = await http.get(uri);
       if (response.statusCode == 200) {
@@ -197,12 +233,14 @@ class DownloadService {
   }
 
   // Search albums
-  Future<List<Map<String, dynamic>>?> searchAlbums(String query, {int limit = 5}) async {
+  Future<List<Map<String, dynamic>>?> searchAlbums(
+    String query, {
+    int limit = 5,
+  }) async {
     try {
-      final uri = Uri.parse('$baseUrl/search/albums').replace(queryParameters: {
-        'q': query,
-        'limit': limit.toString(),
-      });
+      final uri = Uri.parse(
+        '$baseUrl/search/albums',
+      ).replace(queryParameters: {'q': query, 'limit': limit.toString()});
 
       final response = await http.get(uri);
       if (response.statusCode == 200) {
@@ -234,7 +272,9 @@ class DownloadService {
   // Cancel download
   Future<bool> cancelDownload(String downloadId) async {
     try {
-      final response = await http.delete(Uri.parse('$baseUrl/download/$downloadId'));
+      final response = await http.delete(
+        Uri.parse('$baseUrl/download/$downloadId'),
+      );
       if (response.statusCode == 200) {
         print('Successfully cancelled download: $downloadId');
         return true;

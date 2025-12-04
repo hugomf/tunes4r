@@ -13,7 +13,10 @@ class MediaService {
     final directory = Directory(dirPath);
 
     try {
-      await for (var entity in directory.list(recursive: true, followLinks: false)) {
+      await for (var entity in directory.list(
+        recursive: true,
+        followLinks: false,
+      )) {
         if (entity is File) {
           final extension = p.extension(entity.path).toLowerCase();
           if (_isAudioExtension(extension)) {
@@ -31,7 +34,14 @@ class MediaService {
   /// Checks if a file extension is an audio format
   bool _isAudioExtension(String extension) {
     const supportedExtensions = [
-      '.mp3', '.m4a', '.aac', '.ogg', '.flac', '.wav', '.wma', '.aiff'
+      '.mp3',
+      '.m4a',
+      '.aac',
+      '.ogg',
+      '.flac',
+      '.wav',
+      '.wma',
+      '.aiff',
     ];
     return supportedExtensions.contains(extension);
   }
@@ -53,11 +63,9 @@ class MediaService {
       } catch (e) {
         print('Error reading metadata for $fileName: $e');
         // Fallback to basic song creation
-        newSongs.add(Song(
-          title: fileName,
-          path: path,
-          artist: 'Unknown Artist',
-        ));
+        newSongs.add(
+          Song(title: fileName, path: path, artist: 'Unknown Artist'),
+        );
       }
     }
 
@@ -65,7 +73,11 @@ class MediaService {
   }
 
   /// Creates a Song object from audio metadata
-  Future<Song> _createSongFromMetadata(String path, dynamic metadata, String fileName) async {
+  Future<Song> _createSongFromMetadata(
+    String path,
+    dynamic metadata,
+    String fileName,
+  ) async {
     Uint8List? albumArtBytes;
     if (metadata.pictures.isNotEmpty) {
       albumArtBytes = metadata.pictures.first.bytes;

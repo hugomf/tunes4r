@@ -11,18 +11,19 @@ class AudioPlayerLogger {
     void Function(LogRecord record)? onRecord,
   }) {
     Logger.root.level = level;
-    Logger.root.onRecord.listen(onRecord ??
-        (record) {
-          print('${record.level.name}: ${record.time}: ${record.message}');
-          if (record.error != null) {
-            print('  Error: ${record.error}');
-            if (record.stackTrace != null) {
-              print('  StackTrace: ${record.stackTrace}');
+    Logger.root.onRecord.listen(
+      onRecord ??
+          (record) {
+            print('${record.level.name}: ${record.time}: ${record.message}');
+            if (record.error != null) {
+              print('  Error: ${record.error}');
+              if (record.stackTrace != null) {
+                print('  StackTrace: ${record.stackTrace}');
+              }
             }
-          }
-        });
+          },
+    );
   }
-
 
   static void info(String message, {Object? error, StackTrace? stackTrace}) {
     logger.info(message, error, stackTrace);

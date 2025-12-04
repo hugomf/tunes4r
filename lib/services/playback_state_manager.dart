@@ -7,12 +7,12 @@ import '../models/song.dart';
 
 /// Enum representing the various states of audio playback
 enum PlaybackState {
-  none,     // No song loaded
-  loading,  // Loading/buffering
-  playing,  // Actively playing
-  paused,   // Paused
-  stopped,  // Stopped
-  error     // Error state
+  none, // No song loaded
+  loading, // Loading/buffering
+  playing, // Actively playing
+  paused, // Paused
+  stopped, // Stopped
+  error, // Error state
 }
 
 /// Error types for better error handling
@@ -31,7 +31,9 @@ class PlaybackError {
 
 /// Centralized playback state management to handle platform-specific differences
 class PlaybackStateManager {
-  static const MethodChannel _audioChannel = MethodChannel('com.example.tunes4r/audio');
+  static const MethodChannel _audioChannel = MethodChannel(
+    'com.example.tunes4r/audio',
+  );
 
   // Core state
   Song? _currentSong;
@@ -55,7 +57,18 @@ class PlaybackStateManager {
 
   // Audio playback infrastructure
   late AudioPlayer _audioPlayer;
-  List<double> _equalizerBands = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+  List<double> _equalizerBands = [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+  ];
 
   // Callback system for state changes
   VoidCallback? _onStateChanged;
@@ -218,7 +231,8 @@ class PlaybackStateManager {
   }
 
   // Stream access for reactive UI
-  Stream<PlaybackError?> get errorStream => _errorController?.stream ?? Stream.empty();
+  Stream<PlaybackError?> get errorStream =>
+      _errorController?.stream ?? Stream.empty();
 
   void dispose() {
     _audioPlayer.dispose();
@@ -276,13 +290,17 @@ class PlaybackStateManager {
         try {
           final audioSessionId = _audioPlayer.androidAudioSessionId;
           if (audioSessionId != null) {
-            await _audioChannel.invokeMethod('setAudioSessionId', {'sessionId': audioSessionId});
+            await _audioChannel.invokeMethod('setAudioSessionId', {
+              'sessionId': audioSessionId,
+            });
             print('🎛️ Android equalizer attached to session: $audioSessionId');
 
             // Re-apply equalizer state
             if (_isEqualizerEnabled) {
               await _audioChannel.invokeMethod('enableEqualizer');
-              await _audioChannel.invokeMethod('applyEqualizer', {'bands': _equalizerBands});
+              await _audioChannel.invokeMethod('applyEqualizer', {
+                'bands': _equalizerBands,
+              });
             }
           }
         } catch (e) {
@@ -295,7 +313,9 @@ class PlaybackStateManager {
   Future<void> playSong() async {
     if (Platform.isMacOS) {
       if (_currentSong != null) {
-        await _audioChannel.invokeMethod('playSong', {'filePath': _currentSong!.path});
+        await _audioChannel.invokeMethod('playSong', {
+          'filePath': _currentSong!.path,
+        });
         _isMacOSPlaying = true; // Immediately update state
       }
     } else {
@@ -325,7 +345,9 @@ class PlaybackStateManager {
     _equalizerBands = List.from(bands);
     if (Platform.isAndroid || Platform.isMacOS) {
       try {
-        await _audioChannel.invokeMethod('applyEqualizer', {'bands': _equalizerBands});
+        await _audioChannel.invokeMethod('applyEqualizer', {
+          'bands': _equalizerBands,
+        });
         print('🎛️ Platform equalizer bands applied: $_equalizerBands');
       } catch (e) {
         print('Error applying equalizer bands: $e');
@@ -395,7 +417,9 @@ class PlaybackStateManager {
   // Seeking
   Future<void> seekTo(Duration position) async {
     if (Platform.isMacOS) {
-      await _audioChannel.invokeMethod('seekTo', {'position': position.inMilliseconds});
+      await _audioChannel.invokeMethod('seekTo', {
+        'position': position.inMilliseconds,
+      });
     } else {
       await _audioPlayer.seek(position);
     }

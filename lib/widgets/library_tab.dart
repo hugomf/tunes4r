@@ -1,9 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import '../models/song.dart';
-import '../services/playback_manager.dart';
-import '../utils/theme_colors.dart';
+import 'package:tunes4r/models/song.dart';
+import 'package:tunes4r/services/playback_manager.dart';
+import 'package:tunes4r/utils/theme_colors.dart';
 
 class LibraryTab extends StatefulWidget {
   final List<Song> library;
@@ -14,7 +12,8 @@ class LibraryTab extends StatefulWidget {
   final Function(Song) onRemoveSong;
   final VoidCallback onPickFiles;
   final VoidCallback onClearLibrary;
-  final Function(Set<Song>) onSongsSelected; // Callback when songs are selected for playlist
+  final Function(Set<Song>)
+  onSongsSelected; // Callback when songs are selected for playlist
   final Song? currentSong; // Currently playing song for visual feedback
 
   const LibraryTab({
@@ -50,10 +49,7 @@ class _LibraryTabState extends State<LibraryTab> {
           backgroundColor: ThemeColorsUtil.appBarBackgroundColor,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(
-              Icons.close,
-              color: ThemeColorsUtil.textColorPrimary,
-            ),
+            icon: Icon(Icons.close, color: ThemeColorsUtil.textColorPrimary),
             onPressed: _cancelSelection,
             tooltip: 'Cancel Selection',
           ),
@@ -96,7 +92,9 @@ class _LibraryTabState extends State<LibraryTab> {
                   color: ThemeColorsUtil.primaryColor,
                 ),
                 onPressed: () {
-                  print('🔥 BUTTON PRESSED: About to call _addSelectedSongsToPlaylist');
+                  print(
+                    '🔥 BUTTON PRESSED: About to call _addSelectedSongsToPlaylist',
+                  );
                   _addSelectedSongsToPlaylist();
                 },
                 tooltip: 'Add to Playlist',
@@ -126,204 +124,232 @@ class _LibraryTabState extends State<LibraryTab> {
             itemCount: widget.library.length,
             itemBuilder: (context, index) {
               final song = widget.library[index];
-              final bool isCurrent = widget.currentSong != null && song.path == widget.currentSong!.path;
+              final bool isCurrent =
+                  widget.currentSong != null &&
+                  song.path == widget.currentSong!.path;
               return GestureDetector(
-                onDoubleTap: () => widget.onPlaySong(song), // Double tap to play immediately
+                onDoubleTap: () =>
+                    widget.onPlaySong(song), // Double tap to play immediately
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: isCurrent
-                      ? ThemeColorsUtil.primaryColor.withOpacity(0.1)
-                      : ThemeColorsUtil.scaffoldBackgroundColor,
+                        ? ThemeColorsUtil.primaryColor.withOpacity(0.1)
+                        : ThemeColorsUtil.scaffoldBackgroundColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: ListTile(
-                  contentPadding: const EdgeInsets.only(left: 16, right: 8, top: 8, bottom: 8),
-                  onLongPress: () => _startSelection(song),
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: isCurrent
-                        ? ThemeColorsUtil.primaryColor.withOpacity(0.2)
-                        : ThemeColorsUtil.surfaceColor,
-                      borderRadius: BorderRadius.circular(8),
-                      border: isCurrent
-                        ? Border.all(color: ThemeColorsUtil.primaryColor, width: 2)
-                        : null,
+                    contentPadding: const EdgeInsets.only(
+                      left: 16,
+                      right: 8,
+                      top: 8,
+                      bottom: 8,
                     ),
-                    child: song.albumArt != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: Stack(
-                              children: [
-                                Image.memory(
-                                  song.albumArt!,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Icon(
-                                      Icons.music_note,
-                                      size: 20,
-                                      color: isCurrent
-                                        ? ThemeColorsUtil.surfaceColor
-                                        : ThemeColorsUtil.primaryColor,
-                                    );
-                                  },
-                                ),
-                                if (isCurrent)
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: ThemeColorsUtil.primaryColor.withOpacity(0.7),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Icon(
-                                      Icons.volume_up,
-                                      color: ThemeColorsUtil.surfaceColor,
-                                      size: 20,
-                                    ),
+                    onLongPress: () => _startSelection(song),
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: isCurrent
+                            ? ThemeColorsUtil.primaryColor.withOpacity(0.2)
+                            : ThemeColorsUtil.surfaceColor,
+                        borderRadius: BorderRadius.circular(8),
+                        border: isCurrent
+                            ? Border.all(
+                                color: ThemeColorsUtil.primaryColor,
+                                width: 2,
+                              )
+                            : null,
+                      ),
+                      child: song.albumArt != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Stack(
+                                children: [
+                                  Image.memory(
+                                    song.albumArt!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Icon(
+                                        Icons.music_note,
+                                        size: 20,
+                                        color: isCurrent
+                                            ? ThemeColorsUtil.surfaceColor
+                                            : ThemeColorsUtil.primaryColor,
+                                      );
+                                    },
                                   ),
-                              ],
+                                  if (isCurrent)
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: ThemeColorsUtil.primaryColor
+                                            .withOpacity(0.7),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Icon(
+                                        Icons.volume_up,
+                                        color: ThemeColorsUtil.surfaceColor,
+                                        size: 20,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            )
+                          : Icon(
+                              Icons.music_note,
+                              size: 20,
+                              color: isCurrent
+                                  ? ThemeColorsUtil.surfaceColor
+                                  : ThemeColorsUtil.primaryColor,
                             ),
-                          )
-                        : Icon(
-                            Icons.music_note,
-                            size: 20,
-                            color: isCurrent
-                              ? ThemeColorsUtil.surfaceColor
-                              : ThemeColorsUtil.primaryColor,
-                          ),
-                  ),
-                  title: Text(
-                    song.title,
-                    style: TextStyle(
-                      color: isCurrent
-                        ? ThemeColorsUtil.primaryColor
-                        : ThemeColorsUtil.textColorPrimary,
-                      fontSize: isMobile ? 14 : 16,
-                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
                     ),
-                  ),
-                  subtitle: Text(
-                    song.artist,
-                    style: TextStyle(
-                      color: isCurrent
-                        ? ThemeColorsUtil.primaryColor.withOpacity(0.8)
-                        : ThemeColorsUtil.textColorSecondary,
-                      fontSize: isMobile ? 12 : 14,
+                    title: Text(
+                      song.title,
+                      style: TextStyle(
+                        color: isCurrent
+                            ? ThemeColorsUtil.primaryColor
+                            : ThemeColorsUtil.textColorPrimary,
+                        fontSize: isMobile ? 14 : 16,
+                        fontWeight: isCurrent
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
                     ),
-                  ),
-                  trailing: SizedBox(
-                    width: 160, // Increased width to accommodate volume icon + proper spacing
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        if (isCurrent) ...[
-                          Icon(
-                            Icons.volume_up,
-                            color: ThemeColorsUtil.primaryColor,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            icon: Icon(
-                              widget.favorites.contains(song)
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              color: widget.favorites.contains(song)
-                                  ? ThemeColorsUtil.error
-                                  : ThemeColorsUtil.textColorSecondary,
-                              size: 18,
-                            ),
-                            onPressed: () => widget.onToggleFavorite(song),
-                            tooltip: 'Toggle Favorite',
-                          ),
-                        ),
-                        SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            icon: Icon(
-                              Icons.play_arrow,
-                              color: ThemeColorsUtil.secondary,
-                              size: 18,
-                            ),
-                            onPressed: () => widget.onPlaySong(song),
-                            tooltip: 'Play Song',
-                          ),
-                        ),
-                        SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            icon: Icon(
-                              Icons.skip_next,
+                    subtitle: Text(
+                      song.artist,
+                      style: TextStyle(
+                        color: isCurrent
+                            ? ThemeColorsUtil.primaryColor.withOpacity(0.8)
+                            : ThemeColorsUtil.textColorSecondary,
+                        fontSize: isMobile ? 12 : 14,
+                      ),
+                    ),
+                    trailing: SizedBox(
+                      width:
+                          160, // Increased width to accommodate volume icon + proper spacing
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (isCurrent) ...[
+                            Icon(
+                              Icons.volume_up,
                               color: ThemeColorsUtil.primaryColor,
-                              size: 18,
+                              size: 20,
                             ),
-                            onPressed: () => widget.onPlayNext(song),
-                            tooltip: 'Play Next',
-                          ),
-                        ),
-                        SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: PopupMenuButton<String>(
-                            padding: EdgeInsets.zero,
-                            icon: Icon(
-                              Icons.more_vert,
-                              color: ThemeColorsUtil.textColorSecondary,
-                              size: 18,
+                            const SizedBox(width: 8),
+                          ],
+                          SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              icon: Icon(
+                                widget.favorites.contains(song)
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: widget.favorites.contains(song)
+                                    ? ThemeColorsUtil.error
+                                    : ThemeColorsUtil.textColorSecondary,
+                                size: 18,
+                              ),
+                              onPressed: () => widget.onToggleFavorite(song),
+                              tooltip: 'Toggle Favorite',
                             ),
-                            tooltip: 'More Options',
-                            onSelected: (String value) {
-                              switch (value) {
-                                case 'queue':
-                                  widget.onPlayNext(song, 'Added to queue');
-                                  break;
-                                case 'remove':
-                                  _showRemoveDialog(song);
-                                  break;
-                              }
-                            },
-                            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                              PopupMenuItem<String>(
-                                value: 'queue',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.queue_music, size: 16),
-                                    const SizedBox(width: 6),
-                                    Text('Add to Queue'),
-                                  ],
-                                ),
-                              ),
-                              PopupMenuItem<String>(
-                                value: 'remove',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.delete, size: 16, color: ThemeColorsUtil.error),
-                                    const SizedBox(width: 6),
-                                    Text('Remove from Library', style: TextStyle(color: ThemeColorsUtil.error)),
-                                  ],
-                                ),
-                              ),
-                            ],
                           ),
-                        ),
-                      ],
+                          SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              icon: Icon(
+                                Icons.play_arrow,
+                                color: ThemeColorsUtil.secondary,
+                                size: 18,
+                              ),
+                              onPressed: () => widget.onPlaySong(song),
+                              tooltip: 'Play Song',
+                            ),
+                          ),
+                          SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              icon: Icon(
+                                Icons.skip_next,
+                                color: ThemeColorsUtil.primaryColor,
+                                size: 18,
+                              ),
+                              onPressed: () => widget.onPlayNext(song),
+                              tooltip: 'Play Next',
+                            ),
+                          ),
+                          SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: PopupMenuButton<String>(
+                              padding: EdgeInsets.zero,
+                              icon: Icon(
+                                Icons.more_vert,
+                                color: ThemeColorsUtil.textColorSecondary,
+                                size: 18,
+                              ),
+                              tooltip: 'More Options',
+                              onSelected: (String value) {
+                                switch (value) {
+                                  case 'queue':
+                                    widget.onPlayNext(song, 'Added to queue');
+                                    break;
+                                  case 'remove':
+                                    _showRemoveDialog(song);
+                                    break;
+                                }
+                              },
+                              itemBuilder: (BuildContext context) =>
+                                  <PopupMenuEntry<String>>[
+                                    PopupMenuItem<String>(
+                                      value: 'queue',
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.queue_music, size: 16),
+                                          const SizedBox(width: 6),
+                                          Text('Add to Queue'),
+                                        ],
+                                      ),
+                                    ),
+                                    PopupMenuItem<String>(
+                                      value: 'remove',
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.delete,
+                                            size: 16,
+                                            color: ThemeColorsUtil.error,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'Remove from Library',
+                                            style: TextStyle(
+                                              color: ThemeColorsUtil.error,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
                 ),
               );
             },
@@ -345,7 +371,9 @@ class _LibraryTabState extends State<LibraryTab> {
   }
 
   void _addSelectedSongsToPlaylist() {
-    print('🔍 LibraryTab _addSelectedSongsToPlaylist: Selected ${_selectedSongs.length} songs, calling onSongsSelected');
+    print(
+      '🔍 LibraryTab _addSelectedSongsToPlaylist: Selected ${_selectedSongs.length} songs, calling onSongsSelected',
+    );
     if (_selectedSongs.isNotEmpty) {
       widget.onSongsSelected(_selectedSongs);
       // Don't cancel selection immediately - let the async operation complete first
@@ -490,7 +518,9 @@ class _LibraryTabState extends State<LibraryTab> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            style: TextButton.styleFrom(foregroundColor: ThemeColorsUtil.textColorSecondary),
+            style: TextButton.styleFrom(
+              foregroundColor: ThemeColorsUtil.textColorSecondary,
+            ),
             child: const Text('Cancel'),
           ),
           TextButton(

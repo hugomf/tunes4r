@@ -53,25 +53,31 @@ class _SettingsTabState extends State<SettingsTab> {
           const double minCardWidth = 220.0;
 
           // Calculate how many columns can fit, ensuring each column is at least minCardWidth.
-          int gridColumns = (constraints.maxWidth / (minCardWidth + 16.0)).floor();
+          int gridColumns = (constraints.maxWidth / (minCardWidth + 16.0))
+              .floor();
 
           // Enforce minimum of 1 column and maximum of 5.
           if (gridColumns < 1) gridColumns = 1;
           if (gridColumns > 5) gridColumns = 5;
 
           // If the screen width is very small, we constrain the ListView
-          double maxListWidth = constraints.maxWidth > 1400 ? 1400 : constraints.maxWidth;
+          double maxListWidth = constraints.maxWidth > 1400
+              ? 1400
+              : constraints.maxWidth;
 
           return Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxListWidth),
               child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 24,
+                ),
                 children: [
                   // --- Header Section: Media Controls ---
                   _buildSectionHeader(
                     '🎵 Media Controls',
-                    'Manage permissions for external devices'
+                    'Manage permissions for external devices',
                   ),
                   const SizedBox(height: 16),
 
@@ -84,7 +90,7 @@ class _SettingsTabState extends State<SettingsTab> {
                   // --- Theme Header ---
                   _buildSectionHeader(
                     '🎨 Appearance',
-                    'Choose a theme that fits your vibe'
+                    'Choose a theme that fits your vibe',
                   ),
                   const SizedBox(height: 24),
 
@@ -100,16 +106,24 @@ class _SettingsTabState extends State<SettingsTab> {
                     ),
                     itemCount: themeManager.availableThemes.length,
                     itemBuilder: (context, index) {
-                      final themeName = themeManager.availableThemes.keys.elementAt(index);
+                      final themeName = themeManager.availableThemes.keys
+                          .elementAt(index);
                       final theme = themeManager.availableThemes[themeName]!;
-                      final isSelected = themeManager.currentTheme?.name == theme.name;
+                      final isSelected =
+                          themeManager.currentTheme?.name == theme.name;
 
-                      return _buildThemeCard(themeName, theme, isSelected, constraints.maxWidth, themeManager);
+                      return _buildThemeCard(
+                        themeName,
+                        theme,
+                        isSelected,
+                        constraints.maxWidth,
+                        themeManager,
+                      );
                     },
                   ),
-                  
+
                   const SizedBox(height: 40),
-                  
+
                   // --- Footer ---
                   Center(
                     child: Opacity(
@@ -168,7 +182,7 @@ class _SettingsTabState extends State<SettingsTab> {
     final double cardPadding = isSmallScreen ? 16.0 : 24.0;
     final double contentSpacing = isSmallScreen ? 12.0 : 16.0;
     final double buttonVerticalPadding = isSmallScreen ? 12.0 : 16.0;
-    
+
     // Content of the card, structured for responsiveness
     Widget icon = Container(
       padding: const EdgeInsets.all(12),
@@ -176,12 +190,16 @@ class _SettingsTabState extends State<SettingsTab> {
         color: ThemeColorsUtil.primaryColor.withOpacity(0.1),
         shape: BoxShape.circle,
       ),
-      child: Icon(Icons.headphones, color: ThemeColorsUtil.primaryColor, size: 28),
+      child: Icon(
+        Icons.headphones,
+        color: ThemeColorsUtil.primaryColor,
+        size: 28,
+      ),
     );
 
     Widget textContent = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min, 
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           'macOS Media Keys',
@@ -194,8 +212,11 @@ class _SettingsTabState extends State<SettingsTab> {
         const SizedBox(height: 4),
         Text(
           'Enable support for keyboard media keys & bluetooth headsets.',
-          style: TextStyle(fontSize: isSmallScreen ? 11 : 13, color: ThemeColorsUtil.textColorSecondary),
-          maxLines: 2, 
+          style: TextStyle(
+            fontSize: isSmallScreen ? 11 : 13,
+            color: ThemeColorsUtil.textColorSecondary,
+          ),
+          maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
       ],
@@ -209,7 +230,10 @@ class _SettingsTabState extends State<SettingsTab> {
           backgroundColor: ThemeColorsUtil.primaryColor,
           foregroundColor: ThemeColorsUtil.scaffoldBackgroundColor,
           elevation: 0,
-          padding: EdgeInsets.symmetric(horizontal: 20, vertical: buttonVerticalPadding),
+          padding: EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: buttonVerticalPadding,
+          ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: const Text('Grant Access'),
@@ -232,7 +256,7 @@ class _SettingsTabState extends State<SettingsTab> {
           ),
         ],
       ),
-      child: isSmallScreen 
+      child: isSmallScreen
           // Small Screen Layout (Vertical)
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -263,7 +287,13 @@ class _SettingsTabState extends State<SettingsTab> {
   }
 
   /// Builds the theme card with the "Mini-UI" preview.
-  Widget _buildThemeCard(String themeName, ThemeConfig theme, bool isSelected, double screenWidth, ThemeManager themeManager) {
+  Widget _buildThemeCard(
+    String themeName,
+    ThemeConfig theme,
+    bool isSelected,
+    double screenWidth,
+    ThemeManager themeManager,
+  ) {
     const double cardBreakpoint = 300;
     final bool isVerySmallCard = screenWidth < cardBreakpoint;
 
@@ -289,10 +319,14 @@ class _SettingsTabState extends State<SettingsTab> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: theme.colors.surfacePrimary, // The card background matches the theme's surface
+          color: theme
+              .colors
+              .surfacePrimary, // The card background matches the theme's surface
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? ThemeColorsUtil.primaryColor : Colors.transparent,
+            color: isSelected
+                ? ThemeColorsUtil.primaryColor
+                : Colors.transparent,
             width: isSelected ? 3 : 1,
           ),
           boxShadow: [
@@ -323,19 +357,29 @@ class _SettingsTabState extends State<SettingsTab> {
                         // Mini App Bar (Surface Secondary or Primary)
                         Container(
                           height: 32,
-                          color: theme.colors.surfaceSecondary ?? theme.colors.primary.withOpacity(0.8), 
+                          color:
+                              theme.colors.surfaceSecondary ??
+                              theme.colors.primary.withOpacity(0.8),
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           alignment: Alignment.centerLeft,
                           child: Row(
                             children: [
                               Container(
-                                width: 8, height: 8, 
-                                decoration: BoxDecoration(color: theme.colors.primary, shape: BoxShape.circle)
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: theme.colors.primary,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
                               const SizedBox(width: 4),
                               Container(
-                                width: 8, height: 8, 
-                                decoration: BoxDecoration(color: theme.colors.secondary, shape: BoxShape.circle)
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: theme.colors.secondary,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
                             ],
                           ),
@@ -343,39 +387,51 @@ class _SettingsTabState extends State<SettingsTab> {
                         // Mini Body Content (Main background of the simulated app)
                         Expanded(
                           child: Container(
-                            color: theme.colors.surfacePrimary, 
+                            color: theme.colors.surfacePrimary,
                             padding: const EdgeInsets.all(12),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // Skeleton Title
                                 Container(
-                                  height: 8, width: 60,
+                                  height: 8,
+                                  width: 60,
                                   decoration: BoxDecoration(
-                                    color: theme.colors.textPrimary.withOpacity(0.5),
-                                    borderRadius: BorderRadius.circular(4)
+                                    color: theme.colors.textPrimary.withOpacity(
+                                      0.5,
+                                    ),
+                                    borderRadius: BorderRadius.circular(4),
                                   ),
                                 ),
-                                const SizedBox(height: 8.0), 
-                                
-                                Expanded( 
+                                const SizedBox(height: 8.0),
+
+                                Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       // Skeleton Lines
                                       Container(
-                                        height: 6, width: double.infinity,
+                                        height: 6,
+                                        width: double.infinity,
                                         decoration: BoxDecoration(
-                                          color: theme.colors.textSecondary.withOpacity(0.3),
-                                          borderRadius: BorderRadius.circular(4)
+                                          color: theme.colors.textSecondary
+                                              .withOpacity(0.3),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
                                         ),
                                       ),
                                       const SizedBox(height: 4),
                                       Container(
-                                        height: 6, width: 80,
+                                        height: 6,
+                                        width: 80,
                                         decoration: BoxDecoration(
-                                          color: theme.colors.textSecondary.withOpacity(0.3),
-                                          borderRadius: BorderRadius.circular(4)
+                                          color: theme.colors.textSecondary
+                                              .withOpacity(0.3),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
                                         ),
                                       ),
                                       const Spacer(),
@@ -383,15 +439,25 @@ class _SettingsTabState extends State<SettingsTab> {
                                       Align(
                                         alignment: Alignment.bottomRight,
                                         child: Container(
-                                          height: 24, width: 24,
+                                          height: 24,
+                                          width: 24,
                                           decoration: BoxDecoration(
                                             color: theme.colors.primary,
                                             shape: BoxShape.circle,
-                                            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)]
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black12,
+                                                blurRadius: 4,
+                                              ),
+                                            ],
                                           ),
-                                          child: Icon(Icons.play_arrow, size: 14, color: theme.colors.surfacePrimary),
+                                          child: Icon(
+                                            Icons.play_arrow,
+                                            size: 14,
+                                            color: theme.colors.surfacePrimary,
+                                          ),
                                         ),
-                                      )
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -422,10 +488,11 @@ class _SettingsTabState extends State<SettingsTab> {
                   ],
                 ),
               ),
-              
+
               // --- Theme Details Footer ---
               Container(
-                color: ThemeColorsUtil.surfaceColor, // Keep footer neutral to read text easily
+                color: ThemeColorsUtil
+                    .surfaceColor, // Keep footer neutral to read text easily
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -435,7 +502,7 @@ class _SettingsTabState extends State<SettingsTab> {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         // NEW FIX: Scale font size down for very small card widths
-                        fontSize: isVerySmallCard ? 12 : 14, 
+                        fontSize: isVerySmallCard ? 12 : 14,
                         color: ThemeColorsUtil.textColorPrimary,
                       ),
                       maxLines: 1,
@@ -444,14 +511,18 @@ class _SettingsTabState extends State<SettingsTab> {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        Icon(Icons.person_outline, size: 12, color: ThemeColorsUtil.textColorSecondary),
+                        Icon(
+                          Icons.person_outline,
+                          size: 12,
+                          color: ThemeColorsUtil.textColorSecondary,
+                        ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             theme.author,
                             style: TextStyle(
                               // NEW FIX: Scale font size down for very small card widths
-                              fontSize: isVerySmallCard ? 10 : 11, 
+                              fontSize: isVerySmallCard ? 10 : 11,
                               color: ThemeColorsUtil.textColorSecondary,
                             ),
                             maxLines: 1,

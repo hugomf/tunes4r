@@ -29,20 +29,26 @@ class ThemeManager {
   Future<void> _loadAllThemes() async {
     try {
       // Load the Flutter asset manifest to discover all theme files
-      final String manifestJson = await rootBundle.loadString('AssetManifest.json');
+      final String manifestJson = await rootBundle.loadString(
+        'AssetManifest.json',
+      );
       final Map<String, dynamic> manifest = json.decode(manifestJson);
 
       // Find all .toml files in assets/themes/
       final List<String> themeAssetPaths = manifest.keys
-          .where((String key) => key.startsWith('assets/themes/') && key.endsWith('.toml'))
+          .where(
+            (String key) =>
+                key.startsWith('assets/themes/') && key.endsWith('.toml'),
+          )
           .toList();
 
       // Extract theme names from the asset paths
-      final List<String> themeNames = themeAssetPaths
-          .map((path) => path.split('/').last.replaceAll('.toml', ''))
-          .toSet() // Remove duplicates
-          .toList()
-        ..sort(); // Sort for consistent ordering
+      final List<String> themeNames =
+          themeAssetPaths
+              .map((path) => path.split('/').last.replaceAll('.toml', ''))
+              .toSet() // Remove duplicates
+              .toList()
+            ..sort(); // Sort for consistent ordering
 
       print('Found ${themeNames.length} theme files: ${themeNames.join(', ')}');
 
@@ -54,7 +60,9 @@ class ThemeManager {
         }
       }
 
-      print('Successfully loaded ${_themes.length} themes: ${_themes.keys.join(', ')}');
+      print(
+        'Successfully loaded ${_themes.length} themes: ${_themes.keys.join(', ')}',
+      );
     } catch (e) {
       print('Error loading themes: $e'.toString());
       // Fallback to hardcoded list if dynamic loading fails
@@ -81,7 +89,7 @@ class ThemeManager {
       'one_dark_pro',
       'catppuccin_mocha',
       'tokyo_night',
-      'material_dark'
+      'material_dark',
     ];
 
     for (final themeName in themeNames) {
@@ -91,13 +99,17 @@ class ThemeManager {
       }
     }
 
-    print('Loaded ${_themes.length} themes via fallback: ${_themes.keys.join(', ')}');
+    print(
+      'Loaded ${_themes.length} themes via fallback: ${_themes.keys.join(', ')}',
+    );
   }
 
   /// Load a single theme from TOML file
   Future<ThemeConfig?> _loadTheme(String themeName) async {
     try {
-      final tomlContent = await rootBundle.loadString('assets/themes/$themeName.toml');
+      final tomlContent = await rootBundle.loadString(
+        'assets/themes/$themeName.toml',
+      );
       final tomlData = TomlDocument.parse(tomlContent).toMap();
 
       return ThemeConfig.fromMap(tomlData);

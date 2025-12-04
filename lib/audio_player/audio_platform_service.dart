@@ -74,9 +74,12 @@ class JustAudioPlatformService implements AudioPlatformService {
   final MethodChannel? _equalizerChannel;
 
   JustAudioPlatformService()
-      : _equalizerChannel = Platform.isAndroid  // Only Android has native equalizer support
-            ? const MethodChannel('com.example.tunes4r/audio')
-            : null {  // macOS/Windows/iOS rely on just_audio's software equalizer
+    : _equalizerChannel =
+          Platform
+              .isAndroid // Only Android has native equalizer support
+          ? const MethodChannel('com.example.tunes4r/audio')
+          : null {
+    // macOS/Windows/iOS rely on just_audio's software equalizer
     _audioPlayer = AudioPlayer();
   }
 
@@ -99,10 +102,12 @@ class JustAudioPlatformService implements AudioPlatformService {
         await _equalizerChannel?.invokeMethod('setAudioSessionId', {
           'sessionId': audioSessionId,
         });
-        AudioPlayerLogger.info('Android equalizer session attached: $audioSessionId');
+        AudioPlayerLogger.info(
+          'Android equalizer session attached: $audioSessionId',
+        );
       }
     } catch (e) {
-        AudioPlayerLogger.warning('Android equalizer setup failed', error: e);
+      AudioPlayerLogger.warning('Android equalizer setup failed', error: e);
     }
   }
 
@@ -156,13 +161,16 @@ class JustAudioPlatformService implements AudioPlatformService {
   Stream<bool> get playingStream => _audioPlayer.playingStream;
 
   @override
-  Stream<ProcessingState> get processingStateStream => _audioPlayer.processingStateStream;
+  Stream<ProcessingState> get processingStateStream =>
+      _audioPlayer.processingStateStream;
 
   @override
   Future<void> applyEqualizerBands(List<double> bands) async {
     if (_equalizerChannel != null) {
       try {
-        await _equalizerChannel.invokeMethod('applyEqualizer', {'bands': bands});
+        await _equalizerChannel.invokeMethod('applyEqualizer', {
+          'bands': bands,
+        });
         AudioPlayerLogger.info('Equalizer bands applied: $bands');
       } catch (e) {
         AudioPlayerLogger.warning('Failed to apply equalizer bands', error: e);
@@ -216,11 +224,17 @@ class JustAudioPlatformService implements AudioPlatformService {
 
 /// Implementation for macOS using native AVFoundation through method channels
 class MacOSAudioPlatformService implements AudioPlatformService {
-  final MethodChannel _audioChannel = const MethodChannel('com.example.tunes4r/audio');
-  final StreamController<Duration> _positionController = StreamController<Duration>.broadcast();
-  final StreamController<Duration?> _durationController = StreamController<Duration?>.broadcast();
-  final StreamController<bool> _playingController = StreamController<bool>.broadcast();
-  final StreamController<ProcessingState> _processingController = StreamController<ProcessingState>.broadcast();
+  final MethodChannel _audioChannel = const MethodChannel(
+    'com.example.tunes4r/audio',
+  );
+  final StreamController<Duration> _positionController =
+      StreamController<Duration>.broadcast();
+  final StreamController<Duration?> _durationController =
+      StreamController<Duration?>.broadcast();
+  final StreamController<bool> _playingController =
+      StreamController<bool>.broadcast();
+  final StreamController<ProcessingState> _processingController =
+      StreamController<ProcessingState>.broadcast();
 
   Timer? _updateTimer;
   Duration _currentPosition = Duration.zero;
@@ -381,7 +395,8 @@ class MacOSAudioPlatformService implements AudioPlatformService {
   Stream<bool> get playingStream => _playingController.stream;
 
   @override
-  Stream<ProcessingState> get processingStateStream => _processingController.stream;
+  Stream<ProcessingState> get processingStateStream =>
+      _processingController.stream;
 
   @override
   Future<void> applyEqualizerBands(List<double> bands) async {
@@ -411,7 +426,10 @@ class MacOSAudioPlatformService implements AudioPlatformService {
     } on MissingPluginException catch (e) {
       // macOS loop mode not implemented yet - log the error but handle gracefully
       // Loop logic is implemented at the domain level in playback_actions.dart
-      AudioPlayerLogger.warning('macOS loop mode not implemented yet - using domain logic', error: e);
+      AudioPlayerLogger.warning(
+        'macOS loop mode not implemented yet - using domain logic',
+        error: e,
+      );
     } catch (e) {
       AudioPlayerLogger.error('macOS loop mode error', error: e);
       rethrow;

@@ -66,10 +66,12 @@ class PlaybackState {
   bool get isPlaying => status == PlaybackStatus.playing;
   bool get isPaused => status == PlaybackStatus.paused;
   bool get isLoading => status == PlaybackStatus.loading;
-  bool get isIdle => status == PlaybackStatus.none || status == PlaybackStatus.stopped;
+  bool get isIdle =>
+      status == PlaybackStatus.none || status == PlaybackStatus.stopped;
   bool get hasError => lastError != null;
   bool get hasQueue => queue.isNotEmpty;
-  bool get hasPlaylist => currentPlaylist != null && currentPlaylist!.isNotEmpty;
+  bool get hasPlaylist =>
+      currentPlaylist != null && currentPlaylist!.isNotEmpty;
 
   /// Progress as a fractional value between 0.0 and 1.0
   double get progress {
@@ -117,12 +119,12 @@ class PlaybackState {
 
 /// Enumerations for playback state
 enum PlaybackStatus {
-  none,       // No song loaded
-  loading,    // Loading/buffering
-  playing,    // Actively playing
-  paused,     // Paused
-  stopped,    // Stopped
-  error       // Error state
+  none, // No song loaded
+  loading, // Loading/buffering
+  playing, // Actively playing
+  paused, // Paused
+  stopped, // Stopped
+  error, // Error state
 }
 
 /// Error representation
@@ -132,19 +134,11 @@ class PlaybackError {
   final PlaybackErrorType type;
   final DateTime timestamp;
 
-  PlaybackError(
-    this.message,
-    this.type, [
-    DateTime? timestamp,
-  ]) : timestamp = timestamp ?? DateTime.now();
+  PlaybackError(this.message, this.type, [DateTime? timestamp])
+    : timestamp = timestamp ?? DateTime.now();
 
   @override
   String toString() => 'PlaybackError[$type]: $message';
 }
 
-enum PlaybackErrorType {
-  file,
-  network,
-  platform,
-  unknown,
-}
+enum PlaybackErrorType { file, network, platform, unknown }

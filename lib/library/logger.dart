@@ -11,16 +11,18 @@ class LibraryLogger {
     void Function(LogRecord record)? onRecord,
   }) {
     Logger.root.level = level;
-    Logger.root.onRecord.listen(onRecord ??
-        (record) {
-          print('${record.level.name}: ${record.time}: ${record.message}');
-          if (record.error != null) {
-            print('  Error: ${record.error}');
-            if (record.stackTrace != null) {
-              print('  StackTrace: ${record.stackTrace}');
+    Logger.root.onRecord.listen(
+      onRecord ??
+          (record) {
+            print('${record.level.name}: ${record.time}: ${record.message}');
+            if (record.error != null) {
+              print('  Error: ${record.error}');
+              if (record.stackTrace != null) {
+                print('  StackTrace: ${record.stackTrace}');
+              }
             }
-          }
-        });
+          },
+    );
   }
 
   static void finest(String message, {Object? error, StackTrace? stackTrace}) {
@@ -48,8 +50,14 @@ class LibraryLogger {
     logger.info('Library: $operation${details != null ? ' ($details)' : ''}');
   }
 
-  static void songOperation(String operation, String songTitle, {Object? details}) {
-    logger.info('Song: $operation "$songTitle"${details != null ? ' ($details)' : ''}');
+  static void songOperation(
+    String operation,
+    String songTitle, {
+    Object? details,
+  }) {
+    logger.info(
+      'Song: $operation "$songTitle"${details != null ? ' ($details)' : ''}',
+    );
   }
 
   static void searchOperation(String query, int results) {

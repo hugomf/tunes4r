@@ -5,7 +5,9 @@ import 'playback_manager.dart';
 /// Service class that handles media control events from external sources
 /// like Bluetooth headphones and Android Auto
 class MediaControlService {
-  static const MethodChannel _channel = MethodChannel('com.ocelot.tunes4r/media_controls');
+  static const MethodChannel _channel = MethodChannel(
+    'com.ocelot.tunes4r/media_controls',
+  );
   static const String _methodUpdatePlaybackState = 'updatePlaybackState';
   static const String _methodUpdateMetadata = 'updateMetadata';
 
@@ -108,9 +110,13 @@ class MediaControlService {
         final metadata = {
           'title': song.title,
           'artist': song.artist.isNotEmpty ? song.artist : 'Unknown Artist',
-          'album': song.album?.isNotEmpty == true ? song.album : 'Unknown Album',
+          'album': song.album?.isNotEmpty == true
+              ? song.album
+              : 'Unknown Album',
         };
-        print('📤 MediaControlService: Updating metadata: ${metadata['title']} - ${metadata['artist']}');
+        print(
+          '📤 MediaControlService: Updating metadata: ${metadata['title']} - ${metadata['artist']}',
+        );
         await _channel.invokeMethod(_methodUpdateMetadata, metadata);
         print('✅ MediaControlService: Metadata updated successfully');
       } else {

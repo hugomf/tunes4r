@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import 'package:tunes4r/models/download.dart';
-import 'package:tunes4r/services/download_service.dart';
+import 'download_model.dart';
+import 'download_service.dart';
 import 'package:tunes4r/utils/theme_colors.dart';
 
 enum SearchMode { songs, albums }
@@ -95,11 +95,16 @@ class _DownloadTabState extends State<DownloadTab> {
                 ),
                 label: Text(
                   'Retry Connection',
-                  style: TextStyle(color: ThemeColorsUtil.scaffoldBackgroundColor),
+                  style: TextStyle(
+                    color: ThemeColorsUtil.scaffoldBackgroundColor,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ThemeColorsUtil.primaryColor,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ],
@@ -167,7 +172,7 @@ class _DownloadTabState extends State<DownloadTab> {
                             },
                             activeColor: ThemeColorsUtil.primaryColor,
                           ),
-                         Text(
+                          Text(
                             'Song Search',
                             style: TextStyle(
                               color: ThemeColorsUtil.textColorPrimary,
@@ -199,10 +204,12 @@ class _DownloadTabState extends State<DownloadTab> {
                         controller: _searchController,
                         decoration: InputDecoration(
                           hintText: _searchMode == SearchMode.songs
-                            ? '"Shape of You", "Adele", etc.'
-                            : '"Abbey Road", "The Beatles - Sgt Pepper"'
-                          ,
-                          hintStyle: TextStyle(color: ThemeColorsUtil.textColorSecondary.withOpacity(0.7)),
+                              ? '"Shape of You", "Adele", etc.'
+                              : '"Abbey Road", "The Beatles - Sgt Pepper"',
+                          hintStyle: TextStyle(
+                            color: ThemeColorsUtil.textColorSecondary
+                                .withOpacity(0.7),
+                          ),
                           filled: true,
                           fillColor: ThemeColorsUtil.scaffoldBackgroundColor,
                           border: OutlineInputBorder(
@@ -210,7 +217,9 @@ class _DownloadTabState extends State<DownloadTab> {
                             borderSide: BorderSide.none,
                           ),
                           prefixIcon: Icon(
-                            _searchMode == SearchMode.songs ? Icons.music_note : Icons.album,
+                            _searchMode == SearchMode.songs
+                                ? Icons.music_note
+                                : Icons.album,
                             color: ThemeColorsUtil.primaryColor,
                           ),
                           suffixIcon: IconButton(
@@ -224,14 +233,17 @@ class _DownloadTabState extends State<DownloadTab> {
                             },
                           ),
                         ),
-                        style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+                        style: TextStyle(
+                          color: ThemeColorsUtil.textColorPrimary,
+                        ),
                         onSubmitted: _performSearch,
                       ),
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: () => _performSearch(_searchController.text),
+                          onPressed: () =>
+                              _performSearch(_searchController.text),
                           icon: Icon(
                             Icons.search,
                             color: ThemeColorsUtil.scaffoldBackgroundColor,
@@ -305,7 +317,8 @@ class _DownloadTabState extends State<DownloadTab> {
                                   Icons.clear,
                                   color: ThemeColorsUtil.textColorSecondary,
                                 ),
-                                onPressed: () => setState(() => _searchResults.clear()),
+                                onPressed: () =>
+                                    setState(() => _searchResults.clear()),
                                 tooltip: 'Clear Results',
                               ),
                             ],
@@ -315,7 +328,8 @@ class _DownloadTabState extends State<DownloadTab> {
                         Expanded(
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            color: ThemeColorsUtil.scaffoldBackgroundColor.withOpacity(0.5),
+                            color: ThemeColorsUtil.scaffoldBackgroundColor
+                                .withOpacity(0.5),
                             child: ListView.builder(
                               itemCount: _searchResults.length,
                               padding: const EdgeInsets.only(bottom: 16),
@@ -383,7 +397,9 @@ class _DownloadTabState extends State<DownloadTab> {
                     Icon(
                       Icons.search,
                       size: 80,
-                      color: ThemeColorsUtil.textColorSecondary.withOpacity(0.5),
+                      color: ThemeColorsUtil.textColorSecondary.withOpacity(
+                        0.5,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -484,11 +500,7 @@ class _DownloadTabState extends State<DownloadTab> {
                 color: getStatusColor().withOpacity(0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Icon(
-                getStatusIcon(),
-                color: getStatusColor(),
-                size: 18,
-              ),
+              child: Icon(getStatusIcon(), color: getStatusColor(), size: 18),
             ),
             const SizedBox(width: 10),
             // Title and status in a column
@@ -556,8 +568,12 @@ class _DownloadTabState extends State<DownloadTab> {
                     const SizedBox(height: 6),
                     LinearProgressIndicator(
                       value: download.progress / 100.0,
-                      backgroundColor: ThemeColorsUtil.surfaceColor.withOpacity(0.5),
-                      valueColor: AlwaysStoppedAnimation<Color>(ThemeColorsUtil.primaryColor),
+                      backgroundColor: ThemeColorsUtil.surfaceColor.withOpacity(
+                        0.5,
+                      ),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        ThemeColorsUtil.primaryColor,
+                      ),
                       minHeight: 3,
                       borderRadius: BorderRadius.circular(1.5),
                     ),
@@ -580,11 +596,7 @@ class _DownloadTabState extends State<DownloadTab> {
               )
             else if (download.status == DownloadStatus.downloading)
               IconButton(
-                icon: Icon(
-                  Icons.cancel,
-                  color: Colors.red.shade600,
-                  size: 16,
-                ),
+                icon: Icon(Icons.cancel, color: Colors.red.shade600, size: 16),
                 onPressed: () => _cancelDownload(download),
                 tooltip: 'Cancel',
                 constraints: const BoxConstraints(minHeight: 32, minWidth: 32),
@@ -650,16 +662,18 @@ class _DownloadTabState extends State<DownloadTab> {
 
   bool _isYouTubeUrl(String url) {
     return url.contains('youtube.com') ||
-           url.contains('youtu.be') ||
-           url.contains('music.youtube.com') ||
-           url.startsWith('http');
+        url.contains('youtu.be') ||
+        url.contains('music.youtube.com') ||
+        url.startsWith('http');
   }
 
   bool _looksLikeAlbumQuery(String query) {
     // Simple heuristic for album queries
     // If it has "album" keyword or looks like "artist - album" format
     return query.toLowerCase().contains('album') ||
-           query.split('-').length >= 2 && !query.contains('ft.') && !query.contains('feat');
+        query.split('-').length >= 2 &&
+            !query.contains('ft.') &&
+            !query.contains('feat');
   }
 
   Future<void> _downloadFromUrl(String url) async {
@@ -668,11 +682,15 @@ class _DownloadTabState extends State<DownloadTab> {
       if (result != null) {
         // Check if response has expected structure - API returns download_id, not id
         if (result.containsKey('download_id')) {
-          print('✅ URL download API returned valid response with download_id: ${result['download_id']}');
+          print(
+            '✅ URL download API returned valid response with download_id: ${result['download_id']}',
+          );
 
           // Extract download ID from response
           final downloadId = result['download_id'] as String;
-          print('🎵 Extracted downloadId: "$downloadId" (type: ${downloadId.runtimeType})');
+          print(
+            '🎵 Extracted downloadId: "$downloadId" (type: ${downloadId.runtimeType})',
+          );
 
           // Create DownloadItem from API response and add to queue
           final downloadItem = DownloadItem.fromApiResponse(downloadId, result);
@@ -684,8 +702,12 @@ class _DownloadTabState extends State<DownloadTab> {
           // Force an immediate status check for this download
           if (_downloadService != null) {
             try {
-              print('🔄 Performing immediate status check for download: $downloadId');
-              final statusResponse = await _downloadService!.getDownloadStatus(downloadId);
+              print(
+                '🔄 Performing immediate status check for download: $downloadId',
+              );
+              final statusResponse = await _downloadService!.getDownloadStatus(
+                downloadId,
+              );
               if (statusResponse != null) {
                 print('📡 Immediate status response: $statusResponse');
                 _downloadManager.updateDownload(downloadId, statusResponse);
@@ -735,7 +757,11 @@ class _DownloadTabState extends State<DownloadTab> {
       // Alternative locations if working directory differs
       p.join(Directory.current.path, 'downloaded_music'),
       // Path relative to app documents
-      p.join((await getApplicationDocumentsDirectory()).path, '..', 'downloaded_music'),
+      p.join(
+        (await getApplicationDocumentsDirectory()).path,
+        '..',
+        'downloaded_music',
+      ),
     ];
 
     for (final dirPath in possiblePaths) {
@@ -748,7 +774,14 @@ class _DownloadTabState extends State<DownloadTab> {
           await for (var entity in directory.list(recursive: false)) {
             if (entity is File) {
               final extension = p.extension(entity.path).toLowerCase();
-              if (['.mp3', '.m4a', '.aac', '.ogg', '.flac', '.wav'].contains(extension)) {
+              if ([
+                '.mp3',
+                '.m4a',
+                '.aac',
+                '.ogg',
+                '.flac',
+                '.wav',
+              ].contains(extension)) {
                 audioFiles.add(entity.path);
                 print('📁 Found audio file: ${p.basename(entity.path)}');
               }
@@ -801,7 +834,9 @@ class _DownloadTabState extends State<DownloadTab> {
       final data = null; // TODO: Add proper persistence to widget
       if (data != null) {
         // _downloadManager.loadFromStorage(data); // TODO: Implement when extracting persistence
-        print('📥 Loaded ${_downloadManager.downloads.length} downloads from storage');
+        print(
+          '📥 Loaded ${_downloadManager.downloads.length} downloads from storage',
+        );
       }
     } catch (e) {
       print('❌ Error loading download queue: $e');
@@ -812,7 +847,9 @@ class _DownloadTabState extends State<DownloadTab> {
     try {
       // Simplified - TODO: Add proper persistence logic to widget
       // _lastDownloadQueueSave = DateTime.now();
-      print('💾 Saved ${_downloadManager.downloads.length} downloads to storage');
+      print(
+        '💾 Saved ${_downloadManager.downloads.length} downloads to storage',
+      );
     } catch (e) {
       print('❌ Error saving download queue: $e');
     }
@@ -820,7 +857,9 @@ class _DownloadTabState extends State<DownloadTab> {
 
   void _startDownloadProgressMonitoring() {
     // Frequent polling to check if DownloadManager thinks it's time to refresh
-    _downloadRefreshTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+    _downloadRefreshTimer = Timer.periodic(const Duration(seconds: 1), (
+      timer,
+    ) async {
       if (!_downloadServiceAvailable || _downloadService == null) return;
 
       // Let DownloadManager decide when to actually refresh status
@@ -834,7 +873,9 @@ class _DownloadTabState extends State<DownloadTab> {
 
       for (final download in activeDownloads) {
         try {
-          final statusResponse = await _downloadService!.getDownloadStatus(download.id);
+          final statusResponse = await _downloadService!.getDownloadStatus(
+            download.id,
+          );
           if (statusResponse != null) {
             _downloadManager.updateDownload(download.id, statusResponse);
 
@@ -850,14 +891,14 @@ class _DownloadTabState extends State<DownloadTab> {
             // Treat null response as download not found - mark as failed
             _downloadManager.updateDownload(download.id, {
               'status': 'error',
-              'error': 'Download not found on server'
+              'error': 'Download not found on server',
             });
           }
         } catch (e) {
           // Mark download as failed when status check fails
           _downloadManager.updateDownload(download.id, {
             'status': 'error',
-            'error': 'Failed to check status: $e'
+            'error': 'Failed to check status: $e',
           });
         }
       }
@@ -893,12 +934,21 @@ class _DownloadTabState extends State<DownloadTab> {
 
     try {
       if (_searchMode == SearchMode.songs) {
-        final searchResults = await _downloadService!.searchSongs(query, limit: 10);
+        final searchResults = await _downloadService!.searchSongs(
+          query,
+          limit: 10,
+        );
         if (searchResults != null && searchResults.isNotEmpty) {
-          final formattedResults = searchResults.map<Map<String, dynamic>>((song) => {
-            ...song,
-            'thumbnail_url': song['thumbnail_url'] ?? 'https://via.placeholder.com/120x90/333333/666666?text=No+Image',
-          }).toList();
+          final formattedResults = searchResults
+              .map<Map<String, dynamic>>(
+                (song) => {
+                  ...song,
+                  'thumbnail_url':
+                      song['thumbnail_url'] ??
+                      'https://via.placeholder.com/120x90/333333/666666?text=No+Image',
+                },
+              )
+              .toList();
           setState(() => _searchResults = formattedResults);
         } else {
           print('No song results found for: $query');
@@ -907,18 +957,27 @@ class _DownloadTabState extends State<DownloadTab> {
           );
         }
       } else {
-        final albumResults = await _downloadService!.searchAlbums(query, limit: 5);
+        final albumResults = await _downloadService!.searchAlbums(
+          query,
+          limit: 5,
+        );
         if (albumResults != null && albumResults.isNotEmpty) {
-          final formattedResults = albumResults.map<Map<String, dynamic>>((album) => {
-            'title': album['album'] ?? 'Unknown Album',
-            'artist': album['artist'] ?? 'Unknown Artist',
-            'album': album['album'],
-            'track_count': album['track_count'] ?? 0,
-            'release_year': album['release_year'],
-            'type': 'album',
-            'album_info': album,
-            'thumbnail_url': album['cover_url'] ?? 'https://via.placeholder.com/120x90/333333/666666?text=Album',
-          }).toList();
+          final formattedResults = albumResults
+              .map<Map<String, dynamic>>(
+                (album) => {
+                  'title': album['album'] ?? 'Unknown Album',
+                  'artist': album['artist'] ?? 'Unknown Artist',
+                  'album': album['album'],
+                  'track_count': album['track_count'] ?? 0,
+                  'release_year': album['release_year'],
+                  'type': 'album',
+                  'album_info': album,
+                  'thumbnail_url':
+                      album['cover_url'] ??
+                      'https://via.placeholder.com/120x90/333333/666666?text=Album',
+                },
+              )
+              .toList();
           setState(() => _searchResults = formattedResults);
         } else {
           print('No album results found for: $query');
@@ -929,9 +988,9 @@ class _DownloadTabState extends State<DownloadTab> {
       }
     } catch (e) {
       print('❌ Search error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Search failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Search failed: $e')));
     } finally {
       setState(() => _isSearching = false);
     }
@@ -946,13 +1005,17 @@ class _DownloadTabState extends State<DownloadTab> {
         _downloadManager.addDownload(downloadItem);
         await _saveDownloadQueue();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Started downloading "${downloadItem.title}"')),
+          SnackBar(
+            content: Text('Started downloading "${downloadItem.title}"'),
+          ),
         );
 
         // Force immediate status check
         if (_downloadService != null) {
           try {
-            final statusResponse = await _downloadService!.getDownloadStatus(downloadId);
+            final statusResponse = await _downloadService!.getDownloadStatus(
+              downloadId,
+            );
             if (statusResponse != null) {
               _downloadManager.updateDownload(downloadId, statusResponse);
             }
@@ -966,13 +1029,16 @@ class _DownloadTabState extends State<DownloadTab> {
         throw 'Invalid response format';
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Download failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Download failed: $e')));
     }
   }
 
-  Future<void> _downloadFromSearchResult(Map<String, dynamic> result, bool isAlbumTrack) async {
+  Future<void> _downloadFromSearchResult(
+    Map<String, dynamic> result,
+    bool isAlbumTrack,
+  ) async {
     try {
       if (_searchMode == SearchMode.songs) {
         final songQuery = '${result['artist']} - ${result['title']}';
@@ -988,12 +1054,11 @@ class _DownloadTabState extends State<DownloadTab> {
           await _searchAndDownloadSong(songQuery);
         }
       }
-
     } catch (e) {
       print('❌ Error downloading from search result: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Download failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Download failed: $e')));
     }
   }
 
@@ -1013,7 +1078,11 @@ class _DownloadTabState extends State<DownloadTab> {
 
       if (artist.isEmpty || album.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('For album searches, please specify "Artist - Album Name"')),
+          const SnackBar(
+            content: Text(
+              'For album searches, please specify "Artist - Album Name"',
+            ),
+          ),
         );
         return;
       }
@@ -1025,15 +1094,17 @@ class _DownloadTabState extends State<DownloadTab> {
         _downloadManager.addDownload(downloadItem);
         await _saveDownloadQueue();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Started downloading album "$album" by $artist')),
+          SnackBar(
+            content: Text('Started downloading album "$album" by $artist'),
+          ),
         );
       } else {
         throw 'Invalid response format';
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Album download failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Album download failed: $e')));
     }
   }
 
@@ -1062,11 +1133,14 @@ class _DownloadTabState extends State<DownloadTab> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: Image.network(
-              result['thumbnail_url'] ?? 'https://via.placeholder.com/120x90/333333/666666?text=No+Image',
+              result['thumbnail_url'] ??
+                  'https://via.placeholder.com/120x90/333333/666666?text=No+Image',
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 return Icon(
-                  _searchMode == SearchMode.songs ? Icons.music_note : Icons.album,
+                  _searchMode == SearchMode.songs
+                      ? Icons.music_note
+                      : Icons.album,
                   color: ThemeColorsUtil.primaryColor,
                   size: 20,
                 );
@@ -1074,7 +1148,9 @@ class _DownloadTabState extends State<DownloadTab> {
               loadingBuilder: (context, child, loadingProgress) {
                 if (loadingProgress == null) return child;
                 return Icon(
-                  _searchMode == SearchMode.songs ? Icons.music_note : Icons.album,
+                  _searchMode == SearchMode.songs
+                      ? Icons.music_note
+                      : Icons.album,
                   color: ThemeColorsUtil.primaryColor,
                   size: 18,
                 );
@@ -1143,10 +1219,7 @@ class _DownloadTabState extends State<DownloadTab> {
               const SizedBox(width: 8),
             ],
             IconButton(
-              icon: Icon(
-                Icons.download,
-                color: ThemeColorsUtil.primaryColor,
-              ),
+              icon: Icon(Icons.download, color: ThemeColorsUtil.primaryColor),
               onPressed: () => _downloadFromSearchResult(result, isAlbumTrack),
               tooltip: 'Download',
             ),

@@ -12,11 +12,13 @@ class LibraryService {
 
   /// Stream of library songs for reactive updates
   Stream<List<Song>> get libraryStream => _libraryController.stream;
-  final StreamController<List<Song>> _libraryController = StreamController<List<Song>>.broadcast();
+  final StreamController<List<Song>> _libraryController =
+      StreamController<List<Song>>.broadcast();
 
   /// Stream of favorite songs for reactive updates
   Stream<List<Song>> get favoritesStream => _favoritesController.stream;
-  final StreamController<List<Song>> _favoritesController = StreamController<List<Song>>.broadcast();
+  final StreamController<List<Song>> _favoritesController =
+      StreamController<List<Song>>.broadcast();
 
   /// Current library state
   List<Song> _library = [];
@@ -162,8 +164,8 @@ class LibraryService {
     final lowerQuery = query.toLowerCase();
     return _library.where((song) {
       return song.title.toLowerCase().contains(lowerQuery) ||
-             song.artist.toLowerCase().contains(lowerQuery) ||
-             song.album.toLowerCase().contains(lowerQuery);
+          song.artist.toLowerCase().contains(lowerQuery) ||
+          song.album.toLowerCase().contains(lowerQuery);
     }).toList();
   }
 

@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import '../models/playlist_import.dart';
+import '../playlist/models/playlist_import.dart';
 import '../models/song.dart';
 
 // Smart matching engine for finding songs in library
@@ -9,7 +9,9 @@ class SongMatcher {
   SongMatcher(this.library);
 
   // Main matching function
-  Future<List<TrackImportResult>> matchAllTracks(List<ImportableTrack> tracks) async {
+  Future<List<TrackImportResult>> matchAllTracks(
+    List<ImportableTrack> tracks,
+  ) async {
     final results = <TrackImportResult>[];
 
     for (final track in tracks) {
@@ -47,7 +49,8 @@ class SongMatcher {
             matchedSong: bestMatch.song,
             confidence: MatchConfidence.high,
             score: bestMatch.score,
-            reason: 'High confidence fuzzy match: ${bestMatch.score.toStringAsFixed(2)}',
+            reason:
+                'High confidence fuzzy match: ${bestMatch.score.toStringAsFixed(2)}',
           ),
         );
       } else if (bestMatch.score >= 0.7) {
@@ -57,7 +60,8 @@ class SongMatcher {
             matchedSong: bestMatch.song,
             confidence: MatchConfidence.medium,
             score: bestMatch.score,
-            reason: 'Medium confidence: ${bestMatch.score.toStringAsFixed(2)}, manual confirmation needed',
+            reason:
+                'Medium confidence: ${bestMatch.score.toStringAsFixed(2)}, manual confirmation needed',
           ),
         );
       }
@@ -74,7 +78,8 @@ class SongMatcher {
             matchedSong: bestMatch.song,
             confidence: MatchConfidence.medium,
             score: bestMatch.score * 0.8, // Lower score since no artist match
-            reason: 'Title match only (${bestMatch.score.toStringAsFixed(2)}), multiple artists available',
+            reason:
+                'Title match only (${bestMatch.score.toStringAsFixed(2)}), multiple artists available',
           ),
           alternatives: titleMatches.map((m) => m.song).toList(),
         );
@@ -90,7 +95,8 @@ class SongMatcher {
           matchedSong: filenameMatches.first.song,
           confidence: MatchConfidence.low,
           score: filenameMatches.first.score * 0.6, // Low confidence
-          reason: 'Filename similarity (${filenameMatches.first.score.toStringAsFixed(2)}), confirmation needed',
+          reason:
+              'Filename similarity (${filenameMatches.first.score.toStringAsFixed(2)}), confirmation needed',
         ),
         alternatives: filenameMatches.take(3).map((m) => m.song).toList(),
       );
@@ -114,7 +120,7 @@ class SongMatcher {
 
     return library.where((song) {
       return _normalizeString(song.title) == _normalizeString(track.title) &&
-             _normalizeString(song.artist) == _normalizeString(track.artist!);
+          _normalizeString(song.artist) == _normalizeString(track.artist!);
     }).toList();
   }
 
@@ -180,7 +186,8 @@ class SongMatcher {
     if (normalizedA == normalizedB) return 1.0;
 
     // Exact substring match
-    if (normalizedA.contains(normalizedB) || normalizedB.contains(normalizedA)) {
+    if (normalizedA.contains(normalizedB) ||
+        normalizedB.contains(normalizedA)) {
       return 0.9;
     }
 
@@ -225,7 +232,10 @@ class SongMatcher {
     if (a.isEmpty) return b.length;
     if (b.isEmpty) return a.length;
 
-    final matrix = List.generate(a.length + 1, (i) => List<int>.filled(b.length + 1, 0));
+    final matrix = List.generate(
+      a.length + 1,
+      (i) => List<int>.filled(b.length + 1, 0),
+    );
 
     for (int i = 0; i <= a.length; i++) {
       matrix[i][0] = i;
@@ -238,9 +248,9 @@ class SongMatcher {
       for (int j = 1; j <= b.length; j++) {
         final cost = a[i - 1] == b[j - 1] ? 0 : 1;
         matrix[i][j] = math.min(
-          matrix[i - 1][j] + 1,      // deletion
+          matrix[i - 1][j] + 1, // deletion
           math.min(
-            matrix[i][j - 1] + 1,    // insertion
+            matrix[i][j - 1] + 1, // insertion
             matrix[i - 1][j - 1] + cost, // substitution
           ),
         );
@@ -255,7 +265,7 @@ class SongMatcher {
     return input
         .toLowerCase()
         .replaceAll(RegExp(r'[^\w\s]'), '') // Remove punctuation
-        .replaceAll(RegExp(r'\s+'), ' ')    // Normalize spaces
+        .replaceAll(RegExp(r'\s+'), ' ') // Normalize spaces
         .trim();
   }
 

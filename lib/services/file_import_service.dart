@@ -19,9 +19,10 @@ class FileImportService {
   final LibraryService _libraryService;
   final Library? _libraryContext;
 
-  FileImportService(this._databaseService, {
+  FileImportService(
+    this._databaseService, {
     LibraryService? libraryService,
-    Library? libraryContext
+    Library? libraryContext,
   }) : _libraryService = libraryService ?? LibraryService(_databaseService),
        _libraryContext = libraryContext;
 
@@ -37,19 +38,28 @@ class FileImportService {
       bool isAndroid = !kIsWeb && Platform.isAndroid;
 
       if (isMacOS) {
-        print('🎵 Running on macOS - skipping permission checks due to plugin limitations');
+        print(
+          '🎵 Running on macOS - skipping permission checks due to plugin limitations',
+        );
       } else {
-        print('🎵 Running on ${kIsWeb ? 'web' : Platform.operatingSystem} - attempting permission checks...');
+        print(
+          '🎵 Running on ${kIsWeb ? 'web' : Platform.operatingSystem} - attempting permission checks...',
+        );
         try {
           if (isAndroid) {
             // On Android 11+, we need MANAGE_EXTERNAL_STORAGE for full folder access
-            final manageStoragePermission = await Permission.manageExternalStorage.status;
-            print('🎵 MANAGE_EXTERNAL_STORAGE status: ${manageStoragePermission.toString()}');
+            final manageStoragePermission =
+                await Permission.manageExternalStorage.status;
+            print(
+              '🎵 MANAGE_EXTERNAL_STORAGE status: ${manageStoragePermission.toString()}',
+            );
 
             if (!manageStoragePermission.isGranted) {
               print('🎵 Requesting MANAGE_EXTERNAL_STORAGE permission...');
               final result = await Permission.manageExternalStorage.request();
-              print('🎵 MANAGE_EXTERNAL_STORAGE request result: ${result.toString()}');
+              print(
+                '🎵 MANAGE_EXTERNAL_STORAGE request result: ${result.toString()}',
+              );
             }
 
             // Also check audio permissions for file picking
@@ -88,12 +98,16 @@ class FileImportService {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop('files'),
-              style: TextButton.styleFrom(foregroundColor: ThemeColorsUtil.primaryColor),
+              style: TextButton.styleFrom(
+                foregroundColor: ThemeColorsUtil.primaryColor,
+              ),
               child: const Text('Files'),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop('folder'),
-              style: TextButton.styleFrom(foregroundColor: ThemeColorsUtil.secondary),
+              style: TextButton.styleFrom(
+                foregroundColor: ThemeColorsUtil.secondary,
+              ),
               child: const Text('Folder'),
             ),
           ],
@@ -125,7 +139,9 @@ class FileImportService {
         if (folderPath != null) {
           try {
             audioFilePaths = await _getAudioFilesFromDirectory(folderPath);
-            print('🎵 Scanned folder "$folderPath" and found ${audioFilePaths.length} music files');
+            print(
+              '🎵 Scanned folder "$folderPath" and found ${audioFilePaths.length} music files',
+            );
           } catch (e) {
             print('🎵 Folder scan failed: $e');
 
@@ -154,7 +170,9 @@ class FileImportService {
                       onPressed: () => Navigator.of(context).pop(),
                       child: Text(
                         'Cancel',
-                        style: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+                        style: TextStyle(
+                          color: ThemeColorsUtil.textColorSecondary,
+                        ),
                       ),
                     ),
                     TextButton(
@@ -168,7 +186,9 @@ class FileImportService {
                               SnackBar(
                                 content: Text(
                                   'Unable to open settings on this platform',
-                                  style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+                                  style: TextStyle(
+                                    color: ThemeColorsUtil.textColorPrimary,
+                                  ),
                                 ),
                                 backgroundColor: ThemeColorsUtil.error,
                               ),
@@ -196,7 +216,6 @@ class FileImportService {
       // Step 4: Process and import the files
       final resultCount = await _importAudioFiles(audioFilePaths, context);
       return resultCount;
-
     } catch (e) {
       print('Error picking files: $e');
 
@@ -268,7 +287,10 @@ class FileImportService {
   }
 
   /// Process and import audio files to the database
-  Future<int> _importAudioFiles(List<String> filePaths, BuildContext context) async {
+  Future<int> _importAudioFiles(
+    List<String> filePaths,
+    BuildContext context,
+  ) async {
     // Show progress dialog
     showDialog(
       context: context,
@@ -324,7 +346,9 @@ class FileImportService {
         }
       }
 
-      print('Added $importedCount songs to library via ${this._libraryContext != null ? 'bounded context' : 'library service'}');
+      print(
+        'Added $importedCount songs to library via ${this._libraryContext != null ? 'bounded context' : 'library service'}',
+      );
     } catch (e) {
       print('Error during import: $e');
       // Continue to close dialog and show error
@@ -364,9 +388,26 @@ class FileImportService {
       List<String> foundExtensions = [];
 
       // Define supported audio file extensions
-      final audioExtensions = ['.mp3', '.m4a', '.aac', '.ogg', '.flac', '.wav', '.wma', '.aiff', '.opus', '.dsd', '.dsdiff', '.m4b', '.m4p'];
+      final audioExtensions = [
+        '.mp3',
+        '.m4a',
+        '.aac',
+        '.ogg',
+        '.flac',
+        '.wav',
+        '.wma',
+        '.aiff',
+        '.opus',
+        '.dsd',
+        '.dsdiff',
+        '.m4b',
+        '.m4p',
+      ];
 
-      await for (var entity in directory.list(recursive: true, followLinks: false)) {
+      await for (var entity in directory.list(
+        recursive: true,
+        followLinks: false,
+      )) {
         if (entity is File) {
           totalFilesScanned++;
           final fileName = p.basename(entity.path);
@@ -381,8 +422,11 @@ class FileImportService {
           // Skip very small files that are likely not actual music
           try {
             final fileSize = await entity.length();
-            if (fileSize < 10000) { // Less than 10KB, likely not a real music file
-              print('🎵 Skipping very small file (${(fileSize / 1024).toStringAsFixed(2)} KB): $fileName');
+            if (fileSize < 10000) {
+              // Less than 10KB, likely not a real music file
+              print(
+                '🎵 Skipping very small file (${(fileSize / 1024).toStringAsFixed(2)} KB): $fileName',
+              );
               continue;
             }
           } catch (e) {
@@ -391,7 +435,8 @@ class FileImportService {
           }
 
           // Log first few non-audio files for debugging
-          if (!audioExtensions.contains(extension) && foundExtensions.length < 5) {
+          if (!audioExtensions.contains(extension) &&
+              foundExtensions.length < 5) {
             foundExtensions.add('$extension: ${fileName}');
           }
 
@@ -415,7 +460,9 @@ class FileImportService {
         print('🎵 Android directory access issue. Checking permissions...');
         try {
           final permission = await Permission.manageExternalStorage.status;
-          print('🎵 MANAGE_EXTERNAL_STORAGE permission status: ${permission.toString()}');
+          print(
+            '🎵 MANAGE_EXTERNAL_STORAGE permission status: ${permission.toString()}',
+          );
         } catch (permError) {
           print('🎵 Could not check external storage permission: $permError');
         }
@@ -446,32 +493,36 @@ class FileImportService {
 
         final durationMs = metadata.duration?.inMilliseconds;
 
-        newSongs.add(Song(
-          title: metadata.title?.trim().isNotEmpty == true
-              ? metadata.title!
-              : fileName,
-          path: path,
-          artist: metadata.artist?.trim().isNotEmpty == true
-              ? metadata.artist!
-              : 'Unknown Artist',
-          album: metadata.album?.trim().isNotEmpty == true
-              ? metadata.album!
-              : 'Unknown Album',
-          albumArt: albumArtBytes,
-          duration: durationMs != null
-              ? Duration(milliseconds: durationMs)
-              : null,
-          trackNumber: metadata.trackNumber ?? metadata.trackTotal,
-        ));
+        newSongs.add(
+          Song(
+            title: metadata.title?.trim().isNotEmpty == true
+                ? metadata.title!
+                : fileName,
+            path: path,
+            artist: metadata.artist?.trim().isNotEmpty == true
+                ? metadata.artist!
+                : 'Unknown Artist',
+            album: metadata.album?.trim().isNotEmpty == true
+                ? metadata.album!
+                : 'Unknown Album',
+            albumArt: albumArtBytes,
+            duration: durationMs != null
+                ? Duration(milliseconds: durationMs)
+                : null,
+            trackNumber: metadata.trackNumber ?? metadata.trackTotal,
+          ),
+        );
       } catch (e) {
         print('Error reading metadata for $fileName: $e');
         // Fallback - create song with basic info
-        newSongs.add(Song(
-          title: fileName,
-          path: path,
-          artist: 'Unknown Artist',
-          album: 'Unknown Album',
-        ));
+        newSongs.add(
+          Song(
+            title: fileName,
+            path: path,
+            artist: 'Unknown Artist',
+            album: 'Unknown Album',
+          ),
+        );
       }
     }
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:tunes4r/models/playlist.dart';
 import 'package:tunes4r/models/song.dart';
 import 'package:tunes4r/utils/theme_colors.dart';
-import 'package:tunes4r/widgets/playlist_state.dart';
+import 'package:tunes4r/playlist/models/playlist.dart';
+import 'package:tunes4r/playlist/widgets/playlist_state.dart';
 
 class PlaylistWidget extends StatelessWidget {
   final PlaylistState playlistState;
@@ -18,7 +18,7 @@ class PlaylistWidget extends StatelessWidget {
     // If we have a current playlist, play with its context
     if (playlistState.playlist.isNotEmpty) {
       final context = playlistState.playlist;
-      playSong(song);  // Call the callback
+      playSong(song); // Call the callback
     } else {
       // Fallback - just play the song without context
       playSong(song);
@@ -72,35 +72,57 @@ class PlaylistWidget extends StatelessWidget {
                               backgroundColor: ThemeColorsUtil.primaryColor,
                               elevation: 6,
                               onPressed: () async {
-                                final TextEditingController controller = TextEditingController();
+                                final TextEditingController controller =
+                                    TextEditingController();
                                 final result = await showDialog<String>(
                                   context: context,
                                   builder: (context) => AlertDialog(
-                                    backgroundColor: ThemeColorsUtil.surfaceColor,
+                                    backgroundColor:
+                                        ThemeColorsUtil.surfaceColor,
                                     title: Text(
                                       'Create Playlist',
-                                      style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+                                      style: TextStyle(
+                                        color: ThemeColorsUtil.textColorPrimary,
+                                      ),
                                     ),
                                     content: TextField(
                                       controller: controller,
                                       decoration: InputDecoration(
                                         hintText: 'Enter playlist name',
-                                        hintStyle: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+                                        hintStyle: TextStyle(
+                                          color: ThemeColorsUtil
+                                              .textColorSecondary,
+                                        ),
                                       ),
                                       autofocus: true,
-                                      style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+                                      style: TextStyle(
+                                        color: ThemeColorsUtil.textColorPrimary,
+                                      ),
                                     ),
                                     actions: [
                                       TextButton(
-                                        onPressed: () => Navigator.of(context).pop(),
-                                        child: Text('Cancel', style: TextStyle(color: ThemeColorsUtil.textColorSecondary)),
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(),
+                                        child: Text(
+                                          'Cancel',
+                                          style: TextStyle(
+                                            color: ThemeColorsUtil
+                                                .textColorSecondary,
+                                          ),
+                                        ),
                                       ),
                                       TextButton(
                                         onPressed: () {
                                           final name = controller.text.trim();
-                                          if (name.isNotEmpty) Navigator.of(context).pop(name);
+                                          if (name.isNotEmpty)
+                                            Navigator.of(context).pop(name);
                                         },
-                                        child: Text('Create', style: TextStyle(color: ThemeColorsUtil.primaryColor)),
+                                        child: Text(
+                                          'Create',
+                                          style: TextStyle(
+                                            color: ThemeColorsUtil.primaryColor,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -110,7 +132,11 @@ class PlaylistWidget extends StatelessWidget {
                                   await playlistState.createPlaylist(result);
                                 }
                               },
-                              child: Icon(Icons.add, color: ThemeColorsUtil.iconPrimary, size: 28),
+                              child: Icon(
+                                Icons.add,
+                                color: ThemeColorsUtil.iconPrimary,
+                                size: 28,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             Text(
@@ -137,8 +163,13 @@ class PlaylistWidget extends StatelessWidget {
                               heroTag: "import_playlist",
                               backgroundColor: ThemeColorsUtil.secondary,
                               elevation: 6,
-                              onPressed: () => playlistState.showPlaylistImportDialog(context, []),
-                              child: Icon(Icons.file_upload, color: ThemeColorsUtil.iconPrimary, size: 28),
+                              onPressed: () => playlistState
+                                  .showPlaylistImportDialog(context, []),
+                              child: Icon(
+                                Icons.file_upload,
+                                color: ThemeColorsUtil.iconPrimary,
+                                size: 28,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             Text(
@@ -175,18 +206,21 @@ class PlaylistWidget extends StatelessWidget {
                           itemCount: playlistState.userPlaylists.length,
                           itemBuilder: (context, index) {
                             final playlist = playlistState.userPlaylists[index];
-                            final bool isActive = playlistState.currentPlaylist == playlist;
+                            final bool isActive =
+                                playlistState.currentPlaylist == playlist;
                             return Container(
                               margin: const EdgeInsets.symmetric(vertical: 4),
                               decoration: BoxDecoration(
                                 color: isActive
-                                  ? ThemeColorsUtil.primaryColor.withOpacity(0.1)
-                                  : ThemeColorsUtil.surfaceColor,
+                                    ? ThemeColorsUtil.primaryColor.withOpacity(
+                                        0.1,
+                                      )
+                                    : ThemeColorsUtil.surfaceColor,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: isActive
-                                    ? ThemeColorsUtil.primaryColor
-                                    : Colors.transparent,
+                                      ? ThemeColorsUtil.primaryColor
+                                      : Colors.transparent,
                                   width: 2,
                                 ),
                               ),
@@ -196,8 +230,12 @@ class PlaylistWidget extends StatelessWidget {
                                   Expanded(
                                     child: InkWell(
                                       onTap: () async {
-                                        await playlistState.loadPlaylist(playlist);
-                                        playlistState.setManagingPlaylists(false);
+                                        await playlistState.loadPlaylist(
+                                          playlist,
+                                        );
+                                        playlistState.setManagingPlaylists(
+                                          false,
+                                        );
                                       },
                                       child: Padding(
                                         padding: const EdgeInsets.all(16),
@@ -206,31 +244,42 @@ class PlaylistWidget extends StatelessWidget {
                                             Icon(
                                               Icons.playlist_play,
                                               color: isActive
-                                                ? ThemeColorsUtil.primaryColor
-                                                : ThemeColorsUtil.textColorSecondary,
+                                                  ? ThemeColorsUtil.primaryColor
+                                                  : ThemeColorsUtil
+                                                        .textColorSecondary,
                                               size: 24,
                                             ),
                                             const SizedBox(width: 12),
                                             Expanded(
                                               child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
                                                     playlist.name,
                                                     style: TextStyle(
                                                       fontSize: 18,
-                                                      fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                                                      fontWeight: isActive
+                                                          ? FontWeight.bold
+                                                          : FontWeight.normal,
                                                       color: isActive
-                                                        ? ThemeColorsUtil.primaryColor
-                                                        : ThemeColorsUtil.textColorPrimary,
+                                                          ? ThemeColorsUtil
+                                                                .primaryColor
+                                                          : ThemeColorsUtil
+                                                                .textColorPrimary,
                                                     ),
                                                   ),
                                                   Text(
                                                     '${playlist.songs.length} ${playlist.songs.length == 1 ? 'song' : 'songs'}',
                                                     style: TextStyle(
                                                       color: isActive
-                                                        ? ThemeColorsUtil.primaryColor.withOpacity(0.8)
-                                                        : ThemeColorsUtil.textColorSecondary,
+                                                          ? ThemeColorsUtil
+                                                                .primaryColor
+                                                                .withOpacity(
+                                                                  0.8,
+                                                                )
+                                                          : ThemeColorsUtil
+                                                                .textColorSecondary,
                                                     ),
                                                   ),
                                                   if (isActive) ...[
@@ -238,8 +287,10 @@ class PlaylistWidget extends StatelessWidget {
                                                       'Currently loaded',
                                                       style: TextStyle(
                                                         fontSize: 12,
-                                                        color: ThemeColorsUtil.primaryColor,
-                                                        fontWeight: FontWeight.w500,
+                                                        color: ThemeColorsUtil
+                                                            .primaryColor,
+                                                        fontWeight:
+                                                            FontWeight.w500,
                                                       ),
                                                     ),
                                                   ],
@@ -256,11 +307,18 @@ class PlaylistWidget extends StatelessWidget {
                                     onSelected: (value) async {
                                       switch (value) {
                                         case 'edit':
-                                          await playlistState.loadPlaylist(playlist);
-                                          playlistState.setManagingPlaylists(false);
+                                          await playlistState.loadPlaylist(
+                                            playlist,
+                                          );
+                                          playlistState.setManagingPlaylists(
+                                            false,
+                                          );
                                           break;
                                         case 'delete':
-                                          await playlistState.deletePlaylist(playlist, context);
+                                          await playlistState.deletePlaylist(
+                                            playlist,
+                                            context,
+                                          );
                                           break;
                                       }
                                     },
@@ -290,7 +348,8 @@ class PlaylistWidget extends StatelessWidget {
                                       padding: const EdgeInsets.all(16),
                                       child: Icon(
                                         Icons.more_vert,
-                                        color: ThemeColorsUtil.textColorSecondary,
+                                        color:
+                                            ThemeColorsUtil.textColorSecondary,
                                         size: 20,
                                       ),
                                     ),
@@ -305,7 +364,6 @@ class PlaylistWidget extends StatelessWidget {
             ),
           );
         }
-
         // Individual Playlist Editing View
         else {
           return Scaffold(
@@ -333,7 +391,10 @@ class PlaylistWidget extends StatelessWidget {
                     children: [
                       IconButton(
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+                        constraints: const BoxConstraints.tightFor(
+                          width: 32,
+                          height: 32,
+                        ),
                         icon: Icon(
                           Icons.add_circle_outline,
                           color: ThemeColorsUtil.primaryColor,
@@ -341,13 +402,19 @@ class PlaylistWidget extends StatelessWidget {
                         ),
                         onPressed: () async {
                           // Import playlist functionality
-                          await playlistState.showPlaylistImportDialog(context, []);
+                          await playlistState.showPlaylistImportDialog(
+                            context,
+                            [],
+                          );
                         },
                         tooltip: 'Import Playlist',
                       ),
                       IconButton(
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+                        constraints: const BoxConstraints.tightFor(
+                          width: 32,
+                          height: 32,
+                        ),
                         icon: Icon(
                           Icons.playlist_add,
                           color: ThemeColorsUtil.secondary,
@@ -356,7 +423,9 @@ class PlaylistWidget extends StatelessWidget {
                         onPressed: () async {
                           // Add songs to this playlist from library
                           // This would need to be implemented
-                          showSnackBar('Add songs functionality - coming soon!');
+                          showSnackBar(
+                            'Add songs functionality - coming soon!',
+                          );
                         },
                         tooltip: 'Add Songs',
                       ),
@@ -378,33 +447,37 @@ class PlaylistWidget extends StatelessWidget {
                                 break;
                               case 'delete':
                                 if (playlistState.currentPlaylist != null) {
-                                  playlistState.deletePlaylist(playlistState.currentPlaylist!, context);
+                                  playlistState.deletePlaylist(
+                                    playlistState.currentPlaylist!,
+                                    context,
+                                  );
                                 }
                                 break;
                             }
                           },
-                          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                            PopupMenuItem<String>(
-                              value: 'clear',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.clear_all, size: 16),
-                                  const SizedBox(width: 6),
-                                  Text('Clear Playlist'),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem<String>(
-                              value: 'delete',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.delete, size: 16),
-                                  const SizedBox(width: 6),
-                                  Text('Delete Playlist'),
-                                ],
-                              ),
-                            ),
-                          ],
+                          itemBuilder: (BuildContext context) =>
+                              <PopupMenuEntry<String>>[
+                                PopupMenuItem<String>(
+                                  value: 'clear',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.clear_all, size: 16),
+                                      const SizedBox(width: 6),
+                                      Text('Clear Playlist'),
+                                    ],
+                                  ),
+                                ),
+                                PopupMenuItem<String>(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.delete, size: 16),
+                                      const SizedBox(width: 6),
+                                      Text('Delete Playlist'),
+                                    ],
+                                  ),
+                                ),
+                              ],
                         ),
                       ),
                     ],
@@ -428,13 +501,17 @@ class PlaylistWidget extends StatelessWidget {
                 children: [
                   // Playlist Name Header
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     color: ThemeColorsUtil.surfaceColor,
                     child: Row(
                       children: [
                         Expanded(
                           child: Text(
-                            playlistState.currentPlaylist?.name ?? 'Current Playlist',
+                            playlistState.currentPlaylist?.name ??
+                                'Current Playlist',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -465,20 +542,31 @@ class PlaylistWidget extends StatelessWidget {
                               padding: const EdgeInsets.all(16),
                               itemCount: playlistState.playlist.length,
                               onReorder: (oldIndex, newIndex) {
-                                playlistState.reorderPlaylist(oldIndex, newIndex);
+                                playlistState.reorderPlaylist(
+                                  oldIndex,
+                                  newIndex,
+                                );
                               },
                               itemBuilder: (context, index) {
                                 final song = playlistState.playlist[index];
-                                final bool isCurrent = currentSong != null && song.path == currentSong!.path;
+                                final bool isCurrent =
+                                    currentSong != null &&
+                                    song.path == currentSong!.path;
                                 return GestureDetector(
                                   key: ValueKey(song.path),
-                                  onDoubleTap: () => playFromIndex(playlistState.playlist, index),
+                                  onDoubleTap: () => playFromIndex(
+                                    playlistState.playlist,
+                                    index,
+                                  ),
                                   child: Container(
-                                    margin: const EdgeInsets.symmetric(vertical: 2),
+                                    margin: const EdgeInsets.symmetric(
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: isCurrent
-                                        ? ThemeColorsUtil.primaryColor.withOpacity(0.1)
-                                        : Colors.transparent,
+                                          ? ThemeColorsUtil.primaryColor
+                                                .withOpacity(0.1)
+                                          : Colors.transparent,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: ListTile(
@@ -487,16 +575,24 @@ class PlaylistWidget extends StatelessWidget {
                                         height: 40,
                                         decoration: BoxDecoration(
                                           color: isCurrent
-                                            ? ThemeColorsUtil.primaryColor.withOpacity(0.2)
-                                            : ThemeColorsUtil.surfaceColor,
-                                          borderRadius: BorderRadius.circular(8),
+                                              ? ThemeColorsUtil.primaryColor
+                                                    .withOpacity(0.2)
+                                              : ThemeColorsUtil.surfaceColor,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                           border: isCurrent
-                                            ? Border.all(color: ThemeColorsUtil.primaryColor, width: 2)
-                                            : null,
+                                              ? Border.all(
+                                                  color: ThemeColorsUtil
+                                                      .primaryColor,
+                                                  width: 2,
+                                                )
+                                              : null,
                                         ),
                                         child: song.albumArt != null
                                             ? ClipRRect(
-                                                borderRadius: BorderRadius.circular(6),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
                                                 child: Stack(
                                                   children: [
                                                     Image.memory(
@@ -508,12 +604,18 @@ class PlaylistWidget extends StatelessWidget {
                                                     if (isCurrent)
                                                       Container(
                                                         decoration: BoxDecoration(
-                                                          color: ThemeColorsUtil.primaryColor.withOpacity(0.7),
-                                                          borderRadius: BorderRadius.circular(6),
+                                                          color: ThemeColorsUtil
+                                                              .primaryColor
+                                                              .withOpacity(0.7),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                6,
+                                                              ),
                                                         ),
                                                         child: Icon(
                                                           Icons.volume_up,
-                                                          color: ThemeColorsUtil.surfaceColor,
+                                                          color: ThemeColorsUtil
+                                                              .surfaceColor,
                                                           size: 20,
                                                         ),
                                                       ),
@@ -524,25 +626,32 @@ class PlaylistWidget extends StatelessWidget {
                                                 Icons.music_note,
                                                 size: 20,
                                                 color: isCurrent
-                                                  ? ThemeColorsUtil.surfaceColor
-                                                  : ThemeColorsUtil.primaryColor,
+                                                    ? ThemeColorsUtil
+                                                          .surfaceColor
+                                                    : ThemeColorsUtil
+                                                          .primaryColor,
                                               ),
                                       ),
                                       title: Text(
                                         song.title,
                                         style: TextStyle(
-                                          fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                                          fontWeight: isCurrent
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
                                           color: isCurrent
-                                            ? ThemeColorsUtil.primaryColor
-                                            : ThemeColorsUtil.textColorPrimary,
+                                              ? ThemeColorsUtil.primaryColor
+                                              : ThemeColorsUtil
+                                                    .textColorPrimary,
                                         ),
                                       ),
                                       subtitle: Text(
                                         song.artist,
                                         style: TextStyle(
                                           color: isCurrent
-                                            ? ThemeColorsUtil.primaryColor.withOpacity(0.8)
-                                            : ThemeColorsUtil.textColorSecondary,
+                                              ? ThemeColorsUtil.primaryColor
+                                                    .withOpacity(0.8)
+                                              : ThemeColorsUtil
+                                                    .textColorSecondary,
                                         ),
                                       ),
                                       trailing: Row(
@@ -551,7 +660,8 @@ class PlaylistWidget extends StatelessWidget {
                                           if (isCurrent) ...[
                                             Icon(
                                               Icons.volume_up,
-                                              color: ThemeColorsUtil.primaryColor,
+                                              color:
+                                                  ThemeColorsUtil.primaryColor,
                                               size: 20,
                                             ),
                                             const SizedBox(width: 8),
@@ -561,7 +671,11 @@ class PlaylistWidget extends StatelessWidget {
                                               Icons.remove_circle_outline,
                                               color: ThemeColorsUtil.error,
                                             ),
-                                            onPressed: () => playlistState.removeFromPlaylist(song, currentSong: currentSong),
+                                            onPressed: () => playlistState
+                                                .removeFromPlaylist(
+                                                  song,
+                                                  currentSong: currentSong,
+                                                ),
                                             tooltip: 'Remove from playlist',
                                           ),
                                         ],

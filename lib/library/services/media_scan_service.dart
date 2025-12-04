@@ -6,8 +6,19 @@ import 'package:path/path.dart' as p;
 class MediaScanService {
   /// Supported audio file extensions
   static const List<String> audioExtensions = [
-    '.mp3', '.m4a', '.aac', '.ogg', '.flac', '.wav', '.wma', '.aiff',
-    '.opus', '.dsd', '.dsdiff', '.m4b', '.m4p'
+    '.mp3',
+    '.m4a',
+    '.aac',
+    '.ogg',
+    '.flac',
+    '.wav',
+    '.wma',
+    '.aiff',
+    '.opus',
+    '.dsd',
+    '.dsdiff',
+    '.m4b',
+    '.m4p',
   ];
 
   /// Scan a directory recursively for audio files
@@ -19,7 +30,10 @@ class MediaScanService {
       throw Exception('Directory does not exist: $directoryPath');
     }
 
-    await for (var entity in directory.list(recursive: true, followLinks: false)) {
+    await for (var entity in directory.list(
+      recursive: true,
+      followLinks: false,
+    )) {
       if (entity is File) {
         final fileName = p.basename(entity.path);
         final extension = p.extension(entity.path).toLowerCase();

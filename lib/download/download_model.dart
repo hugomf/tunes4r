@@ -1,12 +1,5 @@
-
 /// Status of a download operation
-enum DownloadStatus {
-  queued,
-  downloading,
-  completed,
-  failed,
-  cancelled
-}
+enum DownloadStatus { queued, downloading, completed, failed, cancelled }
 
 extension DownloadStatusExtension on DownloadStatus {
   String get displayName {
@@ -39,8 +32,12 @@ extension DownloadStatusExtension on DownloadStatus {
     }
   }
 
-  bool get isActive => this == DownloadStatus.queued || this == DownloadStatus.downloading;
-  bool get isFinished => this == DownloadStatus.completed || this == DownloadStatus.failed || this == DownloadStatus.cancelled;
+  bool get isActive =>
+      this == DownloadStatus.queued || this == DownloadStatus.downloading;
+  bool get isFinished =>
+      this == DownloadStatus.completed ||
+      this == DownloadStatus.failed ||
+      this == DownloadStatus.cancelled;
 }
 
 /// Represents a download operation in the queue
@@ -107,7 +104,10 @@ class DownloadItem {
   }
 
   /// Creates from API response
-  factory DownloadItem.fromApiResponse(String downloadId, Map<String, dynamic> response) {
+  factory DownloadItem.fromApiResponse(
+    String downloadId,
+    Map<String, dynamic> response,
+  ) {
     final songsInfo = response['songs_info'] as List<dynamic>?;
 
     return DownloadItem(
@@ -143,8 +143,14 @@ class DownloadItem {
       case 'downloading':
         // Check if any songs have errors - if so, the download has failed
         if (songs != null && songs.isNotEmpty) {
-          final hasErrors = songs.any((song) => (song as Map<String, dynamic>).containsKey('error') && song['error'] != null);
-          print('🎯 DEBUG: songs.length = ${songs.length}, hasErrors = $hasErrors');
+          final hasErrors = songs.any(
+            (song) =>
+                (song as Map<String, dynamic>).containsKey('error') &&
+                song['error'] != null,
+          );
+          print(
+            '🎯 DEBUG: songs.length = ${songs.length}, hasErrors = $hasErrors',
+          );
           for (final song in songs) {
             final songMap = song as Map<String, dynamic>;
             print('🎯 DEBUG: song error = ${songMap['error']}');
@@ -152,7 +158,9 @@ class DownloadItem {
           if (hasErrors) {
             print('🎯 DEBUG: Setting status to FAILED due to song errors');
             newStatus = DownloadStatus.failed;
-            errorMessage = statusResponse['error'] as String? ?? 'Download failed due to song errors';
+            errorMessage =
+                statusResponse['error'] as String? ??
+                'Download failed due to song errors';
             break;
           }
         }
@@ -262,7 +270,9 @@ class DownloadManager {
   void updateDownload(String downloadId, Map<String, dynamic> statusResponse) {
     final index = _downloads.indexWhere((d) => d.id == downloadId);
     if (index != -1) {
-      final updated = _downloads[index].updateFromStatusResponse(statusResponse);
+      final updated = _downloads[index].updateFromStatusResponse(
+        statusResponse,
+      );
       _downloads[index] = updated;
     }
   }
@@ -275,9 +285,12 @@ class DownloadManager {
   /// Clears completed/failed downloads older than specified duration
   void clearOldDownloads({Duration maxAge = const Duration(hours: 24)}) {
     final cutoff = DateTime.now().subtract(maxAge);
-    _downloads.removeWhere((d) =>
-        (d.status == DownloadStatus.completed || d.status == DownloadStatus.failed) &&
-        d.createdAt.isBefore(cutoff));
+    _downloads.removeWhere(
+      (d) =>
+          (d.status == DownloadStatus.completed ||
+              d.status == DownloadStatus.failed) &&
+          d.createdAt.isBefore(cutoff),
+    );
   }
 
   /// Gets download by ID
@@ -337,17 +350,21 @@ class DownloadManager {
     if (_lastStatusCheck == null) return true;
 
     // Allow frequent checks (3 seconds) if there are downloads that need attention
-    final hasActiveDownloads = _downloads.any((d) =>
-        d.status == DownloadStatus.queued ||
-        d.status == DownloadStatus.downloading ||
-        d.status == DownloadStatus.failed);
+    final hasActiveDownloads = _downloads.any(
+      (d) =>
+          d.status == DownloadStatus.queued ||
+          d.status == DownloadStatus.downloading ||
+          d.status == DownloadStatus.failed,
+    );
 
     if (hasActiveDownloads) {
       // Check every 3 seconds for active/failed downloads
-      return DateTime.now().difference(_lastStatusCheck!) >= const Duration(seconds: 3);
+      return DateTime.now().difference(_lastStatusCheck!) >=
+          const Duration(seconds: 3);
     } else {
       // Throttle to 5 seconds for completed/cancelled downloads only
-      return DateTime.now().difference(_lastStatusCheck!) >= _statusCheckInterval;
+      return DateTime.now().difference(_lastStatusCheck!) >=
+          _statusCheckInterval;
     }
   }
 

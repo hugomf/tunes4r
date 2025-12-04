@@ -8,7 +8,8 @@ class ThemeLogger {
 
   /// Configure the logger for this bounded context
   static void configure({
-    Level level = Level.INFO, // INFO for theme loading/switching, WARNING for errors
+    Level level =
+        Level.INFO, // INFO for theme loading/switching, WARNING for errors
   }) {
     if (_configured) return;
 
@@ -19,7 +20,9 @@ class ThemeLogger {
         print('[${record.level.name}] [Theme] Error: ${record.error}');
       }
       if (record.stackTrace != null) {
-        print('[${record.level.name}] [Theme] Stack trace:\n${record.stackTrace}');
+        print(
+          '[${record.level.name}] [Theme] Stack trace:\n${record.stackTrace}',
+        );
       }
     });
 
@@ -42,7 +45,11 @@ class ThemeLogger {
 
   static void warning(String message, {Object? error}) {
     if (error != null) {
-      _logger.warning('$message: $error', error, error is Error ? error.stackTrace : null);
+      _logger.warning(
+        '$message: $error',
+        error,
+        error is Error ? error.stackTrace : null,
+      );
     } else {
       _logger.warning(message);
     }
@@ -50,7 +57,11 @@ class ThemeLogger {
 
   static void severe(String message, {Object? error}) {
     if (error != null) {
-      _logger.severe('$message: $error', error, error is Error ? error.stackTrace : null);
+      _logger.severe(
+        '$message: $error',
+        error,
+        error is Error ? error.stackTrace : null,
+      );
     } else {
       _logger.severe(message);
     }

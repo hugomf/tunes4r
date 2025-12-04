@@ -44,7 +44,8 @@ class _NowPlayingTabState extends State<NowPlayingTab>
   /// Public playback methods - NowPlayingTab handles current song playback
   void contextPlaySong(Song song) => widget.playbackManager.playSong(song);
 
-  Future<void> contextTogglePlayPause() async => await widget.playbackManager.togglePlayPause();
+  Future<void> contextTogglePlayPause() async =>
+      await widget.playbackManager.togglePlayPause();
 
   @override
   Widget build(BuildContext context) {
@@ -53,12 +54,13 @@ class _NowPlayingTabState extends State<NowPlayingTab>
 
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
-    
+
     // Calculate responsive sizes
-    final availableHeight = screenHeight - MediaQuery.of(context).padding.top - 100;
+    final availableHeight =
+        screenHeight - MediaQuery.of(context).padding.top - 100;
     final maxVinylSize = (screenWidth * 0.65).clamp(180.0, 280.0);
     final vinylSize = (availableHeight * 0.45).clamp(180.0, maxVinylSize);
-    
+
     // Calculate responsive font sizes based on vinyl size
     final titleFontSize = (vinylSize * 0.12).clamp(20.0, 28.0);
     final artistFontSize = (vinylSize * 0.07).clamp(14.0, 18.0);
@@ -67,12 +69,13 @@ class _NowPlayingTabState extends State<NowPlayingTab>
       builder: (context, constraints) {
         return SingleChildScrollView(
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: constraints.maxHeight,
-            ),
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
             child: IntrinsicHeight(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 20,
+                  horizontal: 20,
+                ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -93,11 +96,8 @@ class _NowPlayingTabState extends State<NowPlayingTab>
                     const SizedBox(height: 20),
 
                     // Spectrum visualizer
-                    Flexible(
-                      flex: 1,
-                      child: _buildSpectrumVisualizer(),
-                    ),
-                    
+                    Flexible(flex: 1, child: _buildSpectrumVisualizer()),
+
                     const SizedBox(height: 10),
                   ],
                 ),
@@ -123,7 +123,9 @@ class _NowPlayingTabState extends State<NowPlayingTab>
             animation: _rotationController,
             builder: (context, child) {
               return Transform.scale(
-                scale: 1.0 + (math.sin(_rotationController.value * 2 * math.pi) * 0.05),
+                scale:
+                    1.0 +
+                    (math.sin(_rotationController.value * 2 * math.pi) * 0.05),
                 child: Container(
                   width: glowSize,
                   height: glowSize,
@@ -172,7 +174,9 @@ class _NowPlayingTabState extends State<NowPlayingTab>
                   shape: BoxShape.circle,
                   color: ThemeColorsUtil.textColorPrimary,
                   border: Border.all(
-                    color: ThemeColorsUtil.scaffoldBackgroundColor.withOpacity(0.8),
+                    color: ThemeColorsUtil.scaffoldBackgroundColor.withOpacity(
+                      0.8,
+                    ),
                     width: 1,
                   ),
                   boxShadow: [
@@ -189,7 +193,8 @@ class _NowPlayingTabState extends State<NowPlayingTab>
                     height: size * 0.055,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: ThemeColorsUtil.scaffoldBackgroundColor.withOpacity(0.4),
+                      color: ThemeColorsUtil.scaffoldBackgroundColor
+                          .withOpacity(0.4),
                     ),
                   ),
                 ),
@@ -274,7 +279,9 @@ class _NowPlayingTabState extends State<NowPlayingTab>
           const SizedBox(height: 8),
           // Artist name
           Text(
-            currentSong.artist.isNotEmpty ? currentSong.artist : 'Unknown Artist',
+            currentSong.artist.isNotEmpty
+                ? currentSong.artist
+                : 'Unknown Artist',
             style: TextStyle(
               fontSize: artistFontSize,
               color: ThemeColorsUtil.textColorSecondary,
@@ -319,7 +326,8 @@ class _NowPlayingTabState extends State<NowPlayingTab>
   }
 
   Widget _buildSpectrumVisualizer() {
-    if (!widget.playbackManager.isPlaying || widget.playbackManager.currentSong == null) {
+    if (!widget.playbackManager.isPlaying ||
+        widget.playbackManager.currentSong == null) {
       return const SizedBox(height: 60);
     }
 
@@ -331,10 +339,12 @@ class _NowPlayingTabState extends State<NowPlayingTab>
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: List.generate(30, (index) {
-          final spectrumIndex = index % widget.playbackManager.spectrumData.length;
-          final height = (widget.playbackManager.spectrumData[spectrumIndex] * 45 + 8)
-              .clamp(8.0, 50.0);
-          
+          final spectrumIndex =
+              index % widget.playbackManager.spectrumData.length;
+          final height =
+              (widget.playbackManager.spectrumData[spectrumIndex] * 45 + 8)
+                  .clamp(8.0, 50.0);
+
           return Expanded(
             child: Container(
               height: height,
@@ -362,7 +372,8 @@ class _NowPlayingTabState extends State<NowPlayingTab>
   }
 
   Widget _buildEnhancedControls() {
-    if (widget.playbackManager.currentSong == null) return const SizedBox.shrink();
+    if (widget.playbackManager.currentSong == null)
+      return const SizedBox.shrink();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

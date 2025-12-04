@@ -30,7 +30,10 @@ class Settings {
 
     try {
       // Execute initialization command
-      _state = SettingsActions.initializeSettings(_state, InitializeSettingsCommand());
+      _state = SettingsActions.initializeSettings(
+        _state,
+        InitializeSettingsCommand(),
+      );
     } catch (e) {
       print('Failed to initialize settings bounded context: $e');
       rethrow;

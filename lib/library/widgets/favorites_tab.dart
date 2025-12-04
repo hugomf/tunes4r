@@ -1,32 +1,30 @@
 import 'package:flutter/material.dart';
-import '../models/song.dart';
-import '../services/playback_manager.dart';
-import '../utils/theme_colors.dart';
+import 'package:tunes4r/models/song.dart';
+import 'package:tunes4r/library/library.dart';
+import 'package:tunes4r/services/playback_manager.dart';
+import 'package:tunes4r/utils/theme_colors.dart';
 
 class FavoritesTab extends StatelessWidget {
-  final List<Song> favorites;
-  final Function(Song) onPlaySong;
-  final Function(Song) onAddToQueue;
+  final Library libraryContext;
   final PlaybackManager playbackManager;
-
-  /// Public playback methods - each UI context knows its own playlist
-  void contextPlaySong(Song song) => onPlaySong(song);  // Plays with favorites context
-
-  Future<void> contextTogglePlayPause() async {
-    // If nothing is playing and we have favorites, start from the beginning
-    if (playbackManager.currentSong == null && favorites.isNotEmpty) {
-      playbackManager.startPlaylist(favorites, startIndex: 0);
-    }
-    // Otherwise, just toggle (this would be handled by the controls)
-  }
 
   const FavoritesTab({
     super.key,
-    required this.favorites,
-    required this.onPlaySong,
-    required this.onAddToQueue,
+    required this.libraryContext,
     required this.playbackManager,
   });
+
+  // Get favorites from Library BC - no external dependencies
+  List<Song> get favorites => libraryContext.favorites;
+
+  /// Owns favorites playback context
+  void _playSongFromFavorites(Song song) {
+    playbackManager.playSong(song, context: favorites);
+  }
+
+  void _addSongToQueue(Song song) {
+    playbackManager.addToQueue(song);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,14 +73,14 @@ class FavoritesTab extends StatelessWidget {
                         Icons.play_arrow,
                         color: ThemeColorsUtil.secondary,
                       ),
-                      onPressed: () => onPlaySong(song),
+                      onPressed: () => _playSongFromFavorites(song),
                     ),
                     IconButton(
                       icon: Icon(
                         Icons.add_to_queue,
                         color: ThemeColorsUtil.textColorSecondary,
                       ),
-                      onPressed: () => onAddToQueue(song),
+                      onPressed: () => _addSongToQueue(song),
                     ),
                   ],
                 ),

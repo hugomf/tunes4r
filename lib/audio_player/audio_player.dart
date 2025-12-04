@@ -20,8 +20,10 @@ class AudioPlayer {
 
   // State management
   PlaybackState _state = const PlaybackState();
-  final StreamController<PlaybackState> _stateController = StreamController<PlaybackState>.broadcast();
-  final StreamController<PlaybackEvent> _eventController = StreamController<PlaybackEvent>.broadcast();
+  final StreamController<PlaybackState> _stateController =
+      StreamController<PlaybackState>.broadcast();
+  final StreamController<PlaybackEvent> _eventController =
+      StreamController<PlaybackEvent>.broadcast();
 
   // Spectrum animation
   Timer? _spectrumTimer;
@@ -35,12 +37,14 @@ class AudioPlayer {
     final platformService = JustAudioPlatformService();
 
     // Debug logging - remove in production
-    AudioPlayerLogger.info('AudioPlayer factory: Created JustAudioPlatformService');
+    AudioPlayerLogger.info(
+      'AudioPlayer factory: Created JustAudioPlatformService',
+    );
 
     return AudioPlayer._(platformService);
   }
 
-// Core services - INTERNAL to the bounded context
+  // Core services - INTERNAL to the bounded context
   late final AudioEqualizerService _audioEqualizerService;
   late final MediaControlService _mediaControlService;
 
@@ -48,7 +52,8 @@ class AudioPlayer {
   Future<void> initialize() async {
     // Configure logger for this bounded context - INTERNAL concern
     AudioPlayerLogger.configure(
-      level: Level.INFO, // INFO for playback events, WARNING for errors, SEVERE for critical issues
+      level: Level
+          .INFO, // INFO for playback events, WARNING for errors, SEVERE for critical issues
     );
 
     await _platformService.initialize();
@@ -63,7 +68,9 @@ class AudioPlayer {
     _eventController.stream.listen((event) {
       if (event is SongStartedEvent) {
         _mediaControlService.updateMetadata();
-        AudioPlayerLogger.info('Updated media control metadata for: ${event.song.title}');
+        AudioPlayerLogger.info(
+          'Updated media control metadata for: ${event.song.title}',
+        );
       }
     });
 
@@ -144,7 +151,10 @@ class AudioPlayer {
       AudioPlayerLogger.info('Playing song: ${song.title} (${song.path})');
 
       // Process command through pure actions
-      final newState = PlaybackActions.playSong(_state, PlaySongCommand(song, context: context));
+      final newState = PlaybackActions.playSong(
+        _state,
+        PlaySongCommand(song, context: context),
+      );
 
       // Update state
       _updateState(newState);
@@ -155,7 +165,6 @@ class AudioPlayer {
 
       // Emit domain events
       _emitEvent(SongStartedEvent(song, playlist: context));
-
     } catch (e) {
       AudioPlayerLogger.warning('Error playing song: $e', error: e);
       _handleError('Error playing song: $e', PlaybackErrorType.file);
@@ -168,7 +177,9 @@ class AudioPlayer {
       _updateState(newState);
 
       await _platformService.pause();
-      _emitEvent(PlaybackStateChangedEvent(_state.status, PlaybackStatus.paused));
+      _emitEvent(
+        PlaybackStateChangedEvent(_state.status, PlaybackStatus.paused),
+      );
     } catch (e) {
       _handleError('Error pausing playback: $e', PlaybackErrorType.platform);
     }
@@ -180,14 +191,19 @@ class AudioPlayer {
       _updateState(newState);
 
       await _platformService.play();
-      _emitEvent(PlaybackStateChangedEvent(_state.status, PlaybackStatus.playing));
+      _emitEvent(
+        PlaybackStateChangedEvent(_state.status, PlaybackStatus.playing),
+      );
     } catch (e) {
       _handleError('Error resuming playback: $e', PlaybackErrorType.platform);
     }
   }
 
   Future<void> togglePlayPause() async {
-    final newState = PlaybackActions.togglePlayPause(_state, TogglePlayPauseCommand());
+    final newState = PlaybackActions.togglePlayPause(
+      _state,
+      TogglePlayPauseCommand(),
+    );
     if (newState.status == PlaybackStatus.playing) {
       await resume();
     } else {
@@ -201,7 +217,9 @@ class AudioPlayer {
       _updateState(newState);
 
       await _platformService.stop();
-      _emitEvent(PlaybackStateChangedEvent(_state.status, PlaybackStatus.stopped));
+      _emitEvent(
+        PlaybackStateChangedEvent(_state.status, PlaybackStatus.stopped),
+      );
     } catch (e) {
       _handleError('Error stopping playback: $e', PlaybackErrorType.platform);
     }
@@ -219,36 +237,61 @@ class AudioPlayer {
   }
 
   Future<void> next() async {
-    if (_state.queue.isNotEmpty || (_state.currentPlaylist != null && _state.currentSong != null)) {
+    if (_state.queue.isNotEmpty ||
+        (_state.currentPlaylist != null && _state.currentSong != null)) {
       final newState = PlaybackActions.nextSong(_state, NextSongCommand());
-      if (!identical(newState.currentSong, _state.currentSong) && newState.currentSong != null) {
+      if (!identical(newState.currentSong, _state.currentSong) &&
+          newState.currentSong != null) {
         await playSong(newState.currentSong!);
       }
     }
   }
 
   Future<void> previous() async {
-    final newState = PlaybackActions.previousSong(_state, PreviousSongCommand());
-    if (!identical(newState.position, _state.position) && newState.position == Duration.zero) {
+    final newState = PlaybackActions.previousSong(
+      _state,
+      PreviousSongCommand(),
+    );
+    if (!identical(newState.position, _state.position) &&
+        newState.position == Duration.zero) {
       // Just seeking to start of current song
       await seekTo(Duration.zero);
-    } else if (newState.currentSong != null && newState.currentSong != _state.currentSong) {
+    } else if (newState.currentSong != null &&
+        newState.currentSong != _state.currentSong) {
       await playSong(newState.currentSong!);
     }
   }
 
   Future<void> addToQueue(Song song) async {
-    final newState = PlaybackActions.addToQueue(_state, AddToQueueCommand(song));
+    final newState = PlaybackActions.addToQueue(
+      _state,
+      AddToQueueCommand(song),
+    );
     _updateState(newState);
 
-    _emitEvent(QueueChangedEvent(newState.queue, QueueChangeType.added, affectedSong: song));
+    _emitEvent(
+      QueueChangedEvent(
+        newState.queue,
+        QueueChangeType.added,
+        affectedSong: song,
+      ),
+    );
   }
 
   Future<void> addToPlayNext(Song song) async {
-    final newState = PlaybackActions.addToPlayNext(_state, AddToPlayNextCommand(song));
+    final newState = PlaybackActions.addToPlayNext(
+      _state,
+      AddToPlayNextCommand(song),
+    );
     _updateState(newState);
 
-    _emitEvent(QueueChangedEvent(newState.queue, QueueChangeType.added, affectedSong: song));
+    _emitEvent(
+      QueueChangedEvent(
+        newState.queue,
+        QueueChangeType.added,
+        affectedSong: song,
+      ),
+    );
   }
 
   Future<void> clearQueue() async {
@@ -259,14 +302,26 @@ class AudioPlayer {
   }
 
   Future<void> removeFromQueue(Song song) async {
-    final newState = PlaybackActions.removeFromQueue(_state, RemoveFromQueueCommand(song));
+    final newState = PlaybackActions.removeFromQueue(
+      _state,
+      RemoveFromQueueCommand(song),
+    );
     _updateState(newState);
 
-    _emitEvent(QueueChangedEvent(newState.queue, QueueChangeType.removed, affectedSong: song));
+    _emitEvent(
+      QueueChangedEvent(
+        newState.queue,
+        QueueChangeType.removed,
+        affectedSong: song,
+      ),
+    );
   }
 
   Future<void> startPlaylist(List<Song> playlist, {int startIndex = 0}) async {
-    final newState = PlaybackActions.startPlaylist(_state, StartPlaylistCommand(playlist, startIndex: startIndex));
+    final newState = PlaybackActions.startPlaylist(
+      _state,
+      StartPlaylistCommand(playlist, startIndex: startIndex),
+    );
     _updateState(newState);
 
     _emitEvent(PlaylistChangedEvent(playlist, hasEnded: false));
@@ -284,15 +339,23 @@ class AudioPlayer {
   }
 
   Future<void> toggleShuffle() async {
-    final newState = PlaybackActions.toggleShuffle(_state, ToggleShuffleCommand());
+    final newState = PlaybackActions.toggleShuffle(
+      _state,
+      ToggleShuffleCommand(),
+    );
     _updateState(newState);
 
     await _platformService.setShuffleMode(newState.isShuffling);
-    _emitEvent(PlaybackModeChangedEvent(newState.isShuffling, newState.isRepeating));
+    _emitEvent(
+      PlaybackModeChangedEvent(newState.isShuffling, newState.isRepeating),
+    );
   }
 
   Future<void> toggleRepeat() async {
-    final newState = PlaybackActions.toggleRepeat(_state, ToggleRepeatCommand());
+    final newState = PlaybackActions.toggleRepeat(
+      _state,
+      ToggleRepeatCommand(),
+    );
     _updateState(newState);
 
     try {
@@ -300,14 +363,21 @@ class AudioPlayer {
     } catch (e) {
       // Platform may not implement loop mode (e.g., macOS) - this is okay
       // The domain logic in PlaybackActions handles repeat behavior for song transitions
-      AudioPlayerLogger.warning('Platform loop mode not implemented, using domain logic');
+      AudioPlayerLogger.warning(
+        'Platform loop mode not implemented, using domain logic',
+      );
     }
 
-    _emitEvent(PlaybackModeChangedEvent(newState.isShuffling, newState.isRepeating));
+    _emitEvent(
+      PlaybackModeChangedEvent(newState.isShuffling, newState.isRepeating),
+    );
   }
 
   Future<void> setEqualizerEnabled(bool enabled) async {
-    final newState = PlaybackActions.setEqualizerEnabled(_state, SetEqualizerEnabledCommand(enabled));
+    final newState = PlaybackActions.setEqualizerEnabled(
+      _state,
+      SetEqualizerEnabledCommand(enabled),
+    );
     _updateState(newState);
 
     if (enabled) {
@@ -320,7 +390,10 @@ class AudioPlayer {
   }
 
   Future<void> applyEqualizerBands(List<double> bands) async {
-    final newState = PlaybackActions.applyEqualizerBands(_state, ApplyEqualizerBandsCommand(bands));
+    final newState = PlaybackActions.applyEqualizerBands(
+      _state,
+      ApplyEqualizerBandsCommand(bands),
+    );
     _updateState(newState);
 
     await _platformService.applyEqualizerBands(bands);
@@ -328,15 +401,32 @@ class AudioPlayer {
   }
 
   Future<void> resetEqualizer() async {
-    final newState = PlaybackActions.resetEqualizer(_state, ResetEqualizerCommand());
+    final newState = PlaybackActions.resetEqualizer(
+      _state,
+      ResetEqualizerCommand(),
+    );
     _updateState(newState);
 
-    await _platformService.applyEqualizerBands([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+    await _platformService.applyEqualizerBands([
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+    ]);
     _emitEvent(EqualizerChangedEvent(_state.isEqualizerEnabled));
   }
 
   Future<void> setPlaybackSpeed(double speed) async {
-    final newState = PlaybackActions.setPlaybackSpeed(_state, SetPlaybackSpeedCommand(speed));
+    final newState = PlaybackActions.setPlaybackSpeed(
+      _state,
+      SetPlaybackSpeedCommand(speed),
+    );
     _updateState(newState);
 
     await _platformService.setSpeed(speed);
@@ -344,15 +434,19 @@ class AudioPlayer {
 
   /// Legacy methods for backward compatibility with PlaybackManager interface
   Future<void> setShuffling(bool shuffling) async {
-    if ((shuffling && !_state.isShuffling) || (!shuffling && _state.isShuffling)) {
+    if ((shuffling && !_state.isShuffling) ||
+        (!shuffling && _state.isShuffling)) {
       await toggleShuffle();
     }
   }
+
   Future<void> setRepeating(bool repeating) async {
-    if ((repeating && !_state.isRepeating) || (!repeating && _state.isRepeating)) {
+    if ((repeating && !_state.isRepeating) ||
+        (!repeating && _state.isRepeating)) {
       await toggleRepeat();
     }
   }
+
   Future<void> pauseSong() async => await pause();
   Future<void> enableEqualizer() async => await setEqualizerEnabled(true);
   Future<void> disableEqualizer() async => await setEqualizerEnabled(false);
@@ -366,9 +460,12 @@ class AudioPlayer {
 
   // Equalizer delegate methods for cleaner interface (optional)
   List<double> get equalizerBands => _audioEqualizerService.bands;
-  Future<void> setEqualizerBands(List<double> bands) => _audioEqualizerService.setBands(bands);
-  Future<void> setEqualizerBandsRealtime(List<double> bands) => _audioEqualizerService.setBandsRealtime(bands);
-  Future<void> toggleEqualizerEnabled(bool enabled) => _audioEqualizerService.toggleEnabled(enabled);
+  Future<void> setEqualizerBands(List<double> bands) =>
+      _audioEqualizerService.setBands(bands);
+  Future<void> setEqualizerBandsRealtime(List<double> bands) =>
+      _audioEqualizerService.setBandsRealtime(bands);
+  Future<void> toggleEqualizerEnabled(bool enabled) =>
+      _audioEqualizerService.toggleEnabled(enabled);
 
   /// Private methods
 
@@ -389,10 +486,12 @@ class AudioPlayer {
 
   void _handleSongCompletion() {
     AudioPlayerLogger.info('Song completed, moving to next');
-    _emitEvent(SongCompletedEvent(
-      _state.currentSong!,
-      // nextSong will be determined by the next() method when called
-    ));
+    _emitEvent(
+      SongCompletedEvent(
+        _state.currentSong!,
+        // nextSong will be determined by the next() method when called
+      ),
+    );
 
     // Handle next song automatically
     next();
@@ -414,7 +513,9 @@ class AudioPlayer {
         _updateState(newState);
       } else {
         // Fade out spectrum when not playing
-        final fadedData = _state.spectrumData.map((value) => value * 0.85).toList();
+        final fadedData = _state.spectrumData
+            .map((value) => value * 0.85)
+            .toList();
         if (fadedData.any((value) => value > 0.01)) {
           final newState = PlaybackActions.updateSpectrum(_state, fadedData);
           _updateState(newState);

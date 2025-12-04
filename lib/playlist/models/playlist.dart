@@ -1,12 +1,6 @@
 import 'package:tunes4r/models/song.dart';
 
-enum PlaylistType {
-  userCreated,
-  album,
-  favorites,
-  recentlyAdded,
-  mostPlayed,
-}
+enum PlaylistType { userCreated, album, favorites, recentlyAdded, mostPlayed }
 
 class Playlist {
   final int? id;
@@ -94,6 +88,8 @@ class Playlist {
 
   int get songCount => songs.length;
 
-  Duration get totalDuration =>
-      songs.fold(Duration.zero, (total, song) => total + (song.duration ?? Duration.zero));
+  Duration get totalDuration => songs.fold(
+    Duration.zero,
+    (total, song) => total + (song.duration ?? Duration.zero),
+  );
 }

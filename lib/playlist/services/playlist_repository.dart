@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:sqflite/sqflite.dart';
-import 'package:tunes4r/models/playlist.dart';
 import 'package:tunes4r/models/song.dart';
+import 'package:tunes4r/playlist/models/playlist.dart';
 
 class PlaylistRepository {
   Database? _database;
@@ -63,7 +63,10 @@ class PlaylistRepository {
   Future<List<Playlist>> getAllPlaylists(List<Song> library) async {
     if (_database == null) throw Exception('Database not initialized');
 
-    final userPlaylistsData = await _database!.query('user_playlists', orderBy: 'updated_at DESC');
+    final userPlaylistsData = await _database!.query(
+      'user_playlists',
+      orderBy: 'updated_at DESC',
+    );
     final userPlaylists = <Playlist>[];
 
     for (final playlistData in userPlaylistsData) {
@@ -79,7 +82,8 @@ class PlaylistRepository {
       final playlistSongsList = playlistSongs.map((songData) {
         return library.firstWhere(
           (song) => song.path == songData['song_path'],
-          orElse: () => Song(title: 'Unknown', path: songData['song_path'] as String),
+          orElse: () =>
+              Song(title: 'Unknown', path: songData['song_path'] as String),
         );
       }).toList();
 
@@ -92,7 +96,11 @@ class PlaylistRepository {
   Future<Playlist> getPlaylistById(int id, List<Song> library) async {
     if (_database == null) throw Exception('Database not initialized');
 
-    final playlistData = await _database!.query('user_playlists', where: 'id = ?', whereArgs: [id]);
+    final playlistData = await _database!.query(
+      'user_playlists',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
     if (playlistData.isEmpty) throw Exception('Playlist not found');
 
     // Load songs for the playlist
@@ -106,7 +114,8 @@ class PlaylistRepository {
     final playlistSongsList = playlistSongs.map((songData) {
       return library.firstWhere(
         (song) => song.path == songData['song_path'],
-        orElse: () => Song(title: 'Unknown', path: songData['song_path'] as String),
+        orElse: () =>
+            Song(title: 'Unknown', path: songData['song_path'] as String),
       );
     }).toList();
 
@@ -131,12 +140,20 @@ class PlaylistRepository {
   Future<void> deletePlaylist(int playlistId) async {
     if (_database == null) throw Exception('Database not initialized');
 
-    await _database!.delete('user_playlists', where: 'id = ?', whereArgs: [playlistId]);
+    await _database!.delete(
+      'user_playlists',
+      where: 'id = ?',
+      whereArgs: [playlistId],
+    );
     // Foreign key constraint will automatically delete playlist_songs
   }
 
   // Playlist Song operations
-  Future<void> addSongToPlaylist(int playlistId, Song song, {int? position}) async {
+  Future<void> addSongToPlaylist(
+    int playlistId,
+    Song song, {
+    int? position,
+  }) async {
     if (_database == null) throw Exception('Database not initialized');
 
     // Check if song is already in playlist
@@ -171,7 +188,8 @@ class PlaylistRepository {
   Future<void> removeSongFromPlaylist(int playlistId, Song song) async {
     if (_database == null) throw Exception('Database not initialized');
 
-    await _database!.delete('playlist_songs',
+    await _database!.delete(
+      'playlist_songs',
       where: 'playlist_id = ? AND song_path = ?',
       whereArgs: [playlistId, song.path],
     );
@@ -243,7 +261,11 @@ class PlaylistRepository {
     if (_database == null) throw Exception('Database not initialized');
 
     // Delete existing songs
-    await _database!.delete('playlist_songs', where: 'playlist_id = ?', whereArgs: [playlistId]);
+    await _database!.delete(
+      'playlist_songs',
+      where: 'playlist_id = ?',
+      whereArgs: [playlistId],
+    );
 
     // Insert songs with new positions
     for (int i = 0; i < songs.length; i++) {
@@ -279,11 +301,15 @@ class PlaylistRepository {
     if (_database == null) throw Exception('Database not initialized');
 
     try {
-      final playlistSongs = await _database!.query('playlists', orderBy: 'position ASC');
+      final playlistSongs = await _database!.query(
+        'playlists',
+        orderBy: 'position ASC',
+      );
       return playlistSongs.map((map) {
         return library.firstWhere(
           (song) => song.path == map['song_path'],
-          orElse: () => Song(title: 'Unknown', path: map['song_path'] as String),
+          orElse: () =>
+              Song(title: 'Unknown', path: map['song_path'] as String),
         );
       }).toList();
     } catch (e) {

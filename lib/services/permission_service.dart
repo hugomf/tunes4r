@@ -12,8 +12,11 @@ class PermissionService {
       final audioPermission = await Permission.audio.status;
       final imagePermission = await Permission.photos.status;
 
-      bool hasPermissions = audioPermission.isGranted && imagePermission.isGranted;
-      print('🎵 Media permissions - Audio: ${audioPermission.isGranted}, Images: ${imagePermission.isGranted}');
+      bool hasPermissions =
+          audioPermission.isGranted && imagePermission.isGranted;
+      print(
+        '🎵 Media permissions - Audio: ${audioPermission.isGranted}, Images: ${imagePermission.isGranted}',
+      );
 
       if (!hasPermissions) {
         print('🎵 Requesting granular media permissions...');
@@ -21,7 +24,9 @@ class PermissionService {
         final imageResult = await Permission.photos.request();
 
         hasPermissions = audioResult.isGranted && imageResult.isGranted;
-        print('🎵 Permission results - Audio: ${audioResult.isGranted}, Images: ${imageResult.isGranted}');
+        print(
+          '🎵 Permission results - Audio: ${audioResult.isGranted}, Images: ${imageResult.isGranted}',
+        );
       }
 
       return hasPermissions;

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+
 import '../../models/song.dart';
 
 /// Statistics about the library
@@ -17,10 +17,10 @@ class LibraryStatistics {
 
   // Empty statistics for when library is not loaded
   const LibraryStatistics.empty()
-      : totalSongs = 0,
-        totalFavorites = 0,
-        totalAlbums = 0,
-        totalArtists = 0;
+    : totalSongs = 0,
+      totalFavorites = 0,
+      totalAlbums = 0,
+      totalArtists = 0;
 
   LibraryStatistics copyWith({
     int? totalSongs,
@@ -66,14 +66,14 @@ class LibraryState {
 
   // Initial empty state
   const LibraryState.initial()
-      : library = const [],
-        favorites = const [],
-        searchResults = const [],
-        searchQuery = '',
-        isLoading = false,
-        isSelectingMode = false,
-        selectedSongs = const {},
-        statistics = const LibraryStatistics.empty();
+    : library = const [],
+      favorites = const [],
+      searchResults = const [],
+      searchQuery = '',
+      isLoading = false,
+      isSelectingMode = false,
+      selectedSongs = const {},
+      statistics = const LibraryStatistics.empty();
 
   LibraryState copyWith({
     List<Song>? library,

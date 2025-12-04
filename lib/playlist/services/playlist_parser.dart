@@ -99,10 +99,7 @@ class PlaylistParser {
           );
           tracks.add(track);
         } else {
-          final track = ImportableTrack(
-            title: title,
-            originalLine: title,
-          );
+          final track = ImportableTrack(title: title, originalLine: title);
           tracks.add(track);
         }
       }
@@ -202,9 +199,13 @@ class PlaylistValidator {
     try {
       final content = file.readAsStringSync();
       return content.isNotEmpty &&
-             (content.contains('#EXTM3U') ||
+          (content.contains('#EXTM3U') ||
               content.contains('[playlist]') ||
-              content.split('\n').any((line) => !line.startsWith('#') && line.trim().isNotEmpty));
+              content
+                  .split('\n')
+                  .any(
+                    (line) => !line.startsWith('#') && line.trim().isNotEmpty,
+                  ));
     } catch (e) {
       return false;
     }

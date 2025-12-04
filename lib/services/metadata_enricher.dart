@@ -1,18 +1,23 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../models/playlist_import.dart';
+import '../playlist/models/playlist_import.dart';
 import '../models/song.dart';
 
 // Service for enriching song metadata using web APIs
 class MetadataEnricher {
   // Last.fm API configuration (free API key needed)
-  static const String _lastFmApiKey = 'YOUR_LASTFM_API_KEY'; // Replace with actual key
+  static const String _lastFmApiKey =
+      'YOUR_LASTFM_API_KEY'; // Replace with actual key
 
   // Cache to avoid repeated API calls
   final Map<String, EnrichedMetadata> _cache = {};
 
   // Enrich a single track with web metadata
-  Future<EnrichedMetadata> enrichTrack(String title, String artist, {String? album}) async {
+  Future<EnrichedMetadata> enrichTrack(
+    String title,
+    String artist, {
+    String? album,
+  }) async {
     final cacheKey = '$artist-$title'.toLowerCase();
 
     if (_cache.containsKey(cacheKey)) {
@@ -32,7 +37,9 @@ class MetadataEnricher {
   }
 
   // Enrich multiple tracks in batch
-  Future<List<EnrichedMetadata>> enrichTracks(List<ImportableTrack> tracks) async {
+  Future<List<EnrichedMetadata>> enrichTracks(
+    List<ImportableTrack> tracks,
+  ) async {
     final results = <EnrichedMetadata>[];
 
     for (final track in tracks) {
@@ -48,7 +55,11 @@ class MetadataEnricher {
   }
 
   // Fetch metadata from Last.fm API
-  Future<EnrichedMetadata> _fetchFromLastFm(String title, String artist, String? album) async {
+  Future<EnrichedMetadata> _fetchFromLastFm(
+    String title,
+    String artist,
+    String? album,
+  ) async {
     if (_lastFmApiKey == 'YOUR_LASTFM_API_KEY') {
       return EnrichedMetadata(); // Return empty if no API key
     }
@@ -58,7 +69,7 @@ class MetadataEnricher {
       final trackUrl = Uri.parse(
         'http://ws.audioscrobbler.com/2.0/?method=track.getInfo'
         '&api_key=$_lastFmApiKey&artist=${Uri.encodeComponent(artist)}'
-        '&track=${Uri.encodeComponent(title)}&format=json'
+        '&track=${Uri.encodeComponent(title)}&format=json',
       );
 
       final trackResponse = await http.get(trackUrl);
@@ -94,21 +105,30 @@ class MetadataEnricher {
           final tags = track['toptags']['tag'];
           if (tags is List && tags.isNotEmpty) {
             genre = tags[0]['name'];
-            additionalData['genres'] = tags.take(3).map((t) => t['name']).toList();
+            additionalData['genres'] = tags
+                .take(3)
+                .map((t) => t['name'])
+                .toList();
           }
         }
 
         // Store additional metadata
         if (track['duration'] != null) {
-          additionalData['duration_ms'] = int.tryParse(track['duration'].toString());
+          additionalData['duration_ms'] = int.tryParse(
+            track['duration'].toString(),
+          );
         }
 
         if (track['listeners'] != null) {
-          additionalData['listeners'] = int.tryParse(track['listeners'].toString());
+          additionalData['listeners'] = int.tryParse(
+            track['listeners'].toString(),
+          );
         }
 
         if (track['playcount'] != null) {
-          additionalData['playcount'] = int.tryParse(track['playcount'].toString());
+          additionalData['playcount'] = int.tryParse(
+            track['playcount'].toString(),
+          );
         }
 
         // Try to get release year from album or wiki
@@ -127,7 +147,6 @@ class MetadataEnricher {
         releaseYear: releaseYear,
         additionalData: additionalData,
       );
-
     } catch (e) {
       // Log error but don't fail
       print('Error fetching metadata for $artist - $title: $e');
@@ -144,7 +163,7 @@ class MetadataEnricher {
     try {
       final url = Uri.parse(
         'http://ws.audioscrobbler.com/2.0/?method=artist.getTopAlbums'
-        '&api_key=$_lastFmApiKey&artist=${Uri.encodeComponent(artist)}&limit=5&format=json'
+        '&api_key=$_lastFmApiKey&artist=${Uri.encodeComponent(artist)}&limit=5&format=json',
       );
 
       final response = await http.get(url);
@@ -178,12 +197,13 @@ class SongMetadataViewer {
 
   // Get enhanced view of a song with web data
   Future<EnrichedSongView> getEnrichedSongView(Song song) async {
-    final enrichedMetadata = await _enricher.enrichTrack(song.title, song.artist, album: song.album);
-
-    return EnrichedSongView(
-      song: song,
-      enrichedMetadata: enrichedMetadata,
+    final enrichedMetadata = await _enricher.enrichTrack(
+      song.title,
+      song.artist,
+      album: song.album,
     );
+
+    return EnrichedSongView(song: song, enrichedMetadata: enrichedMetadata);
   }
 
   // Batch enrich multiple songs
@@ -204,10 +224,7 @@ class EnrichedSongView {
   final Song song;
   final EnrichedMetadata enrichedMetadata;
 
-  EnrichedSongView({
-    required this.song,
-    required this.enrichedMetadata,
-  });
+  EnrichedSongView({required this.song, required this.enrichedMetadata});
 
   // Get the best available cover art URL
   String? get bestCoverArt {
@@ -234,7 +251,9 @@ class EnrichedSongView {
       parts.add('$_listeners listeners');
     }
 
-    return parts.isEmpty ? 'No additional metadata available' : parts.join(' • ');
+    return parts.isEmpty
+        ? 'No additional metadata available'
+        : parts.join(' • ');
   }
 
   String _listeners(int count) {
@@ -272,7 +291,11 @@ class MetadataUtils {
     return genre
         .toLowerCase()
         .split(' ')
-        .map((word) => word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : word)
+        .map(
+          (word) => word.isNotEmpty
+              ? word[0].toUpperCase() + word.substring(1)
+              : word,
+        )
         .join(' ')
         .trim();
   }
@@ -285,8 +308,8 @@ class MetadataUtils {
     // Check for common image extensions
     final path = uri.path.toLowerCase();
     return path.endsWith('.jpg') ||
-           path.endsWith('.jpeg') ||
-           path.endsWith('.png') ||
-           path.endsWith('.webp');
+        path.endsWith('.jpeg') ||
+        path.endsWith('.png') ||
+        path.endsWith('.webp');
   }
 }

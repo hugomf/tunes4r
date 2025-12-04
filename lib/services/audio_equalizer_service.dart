@@ -8,7 +8,7 @@ import '../services/playback_manager.dart';
 /// Service for managing audio equalization
 class AudioEqualizerService {
   final PlaybackManager playbackManager;
-   Timer? _debounceTimer;
+  Timer? _debounceTimer;
 
   AudioEqualizerService(this.playbackManager);
 
@@ -105,7 +105,7 @@ class AudioEqualizerService {
   Future<void> setBandsRealtime(List<double> newBands) async {
     _bands = List<double>.from(newBands);
     _currentPreset = 'Custom';
-    
+
     // Debounce: Only apply after user stops dragging for 50ms
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 50), () async {
@@ -116,7 +116,7 @@ class AudioEqualizerService {
   }
 
   /// Set band gains (expects 10 bands from UI)
- Future<void> setBands(List<double> newBands) async {
+  Future<void> setBands(List<double> newBands) async {
     _bands = List<double>.from(newBands);
     _currentPreset = 'Custom';
     await _applyEqualizer();
@@ -160,31 +160,33 @@ class AudioEqualizerService {
     }
   }
 
-/// Test method - call this to verify EQ is working
-Future<void> testExtremeEQ() async {
-  if (Platform.isMacOS) {
-    try {
-      const MethodChannel equalizerChannel = MethodChannel('com.example.tunes4r/audio');
-      await equalizerChannel.invokeMethod('testExtremeEQ');
-      print('🎛️ Extreme EQ test triggered');
-    } catch (e) {
-      print('Error calling testExtremeEQ: $e');
+  /// Test method - call this to verify EQ is working
+  Future<void> testExtremeEQ() async {
+    if (Platform.isMacOS) {
+      try {
+        const MethodChannel equalizerChannel = MethodChannel(
+          'com.example.tunes4r/audio',
+        );
+        await equalizerChannel.invokeMethod('testExtremeEQ');
+        print('🎛️ Extreme EQ test triggered');
+      } catch (e) {
+        print('Error calling testExtremeEQ: $e');
+      }
     }
   }
-}
 
-/// Test method - massive bass boost
-Future<void> testBassBoost() async {
-  if (Platform.isMacOS) {
-    try {
-      const MethodChannel equalizerChannel = MethodChannel('com.example.tunes4r/audio');
-      await equalizerChannel.invokeMethod('testBassBoost');
-      print('🎛️ Bass boost test triggered');
-    } catch (e) {
-      print('Error calling testBassBoost: $e');
+  /// Test method - massive bass boost
+  Future<void> testBassBoost() async {
+    if (Platform.isMacOS) {
+      try {
+        const MethodChannel equalizerChannel = MethodChannel(
+          'com.example.tunes4r/audio',
+        );
+        await equalizerChannel.invokeMethod('testBassBoost');
+        print('🎛️ Bass boost test triggered');
+      } catch (e) {
+        print('Error calling testBassBoost: $e');
+      }
     }
   }
-}
-
-
 }

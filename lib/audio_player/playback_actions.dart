@@ -3,16 +3,15 @@ import 'playback_state.dart';
 import 'playback_commands.dart';
 import '../../models/song.dart';
 
-  /// Pure functions that transform PlaybackState based on commands
-  /// No side effects, just state transformations
-  class PlaybackActions {
-
-    /// Helper to clamp Duration values between min and max
-    static Duration _clampDuration(Duration value, Duration min, Duration max) {
-      if (value < min) return min;
-      if (value > max) return max;
-      return value;
-    }
+/// Pure functions that transform PlaybackState based on commands
+/// No side effects, just state transformations
+class PlaybackActions {
+  /// Helper to clamp Duration values between min and max
+  static Duration _clampDuration(Duration value, Duration min, Duration max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+  }
 
   /// Play a song, optionally with playlist context
   static PlaybackState playSong(PlaybackState state, PlaySongCommand command) {
@@ -29,17 +28,13 @@ import '../../models/song.dart';
 
   /// Pause playback
   static PlaybackState pause(PlaybackState state, PauseCommand command) {
-    return state.copyWith(
-      status: PlaybackStatus.paused,
-    );
+    return state.copyWith(status: PlaybackStatus.paused);
   }
 
   /// Resume playback from paused state
   static PlaybackState resume(PlaybackState state, ResumeCommand command) {
     if (state.currentSong != null && state.status == PlaybackStatus.paused) {
-      return state.copyWith(
-        status: PlaybackStatus.playing,
-      );
+      return state.copyWith(status: PlaybackStatus.playing);
     }
     return state;
   }
@@ -53,7 +48,10 @@ import '../../models/song.dart';
   }
 
   /// Toggle between play and pause
-  static PlaybackState togglePlayPause(PlaybackState state, TogglePlayPauseCommand command) {
+  static PlaybackState togglePlayPause(
+    PlaybackState state,
+    TogglePlayPauseCommand command,
+  ) {
     switch (state.status) {
       case PlaybackStatus.playing:
         return pause(state, PauseCommand());
@@ -69,55 +67,68 @@ import '../../models/song.dart';
   static PlaybackState seekTo(PlaybackState state, SeekToCommand command) {
     if (state.currentSong == null) return state;
 
-    final clampedPosition = _clampDuration(command.position, Duration.zero, state.duration);
-
-    return state.copyWith(
-      position: clampedPosition,
+    final clampedPosition = _clampDuration(
+      command.position,
+      Duration.zero,
+      state.duration,
     );
+
+    return state.copyWith(position: clampedPosition);
   }
 
   /// Add song to end of queue
-  static PlaybackState addToQueue(PlaybackState state, AddToQueueCommand command) {
+  static PlaybackState addToQueue(
+    PlaybackState state,
+    AddToQueueCommand command,
+  ) {
     if (state.queue.contains(command.song)) {
       return state; // Don't add duplicates
     }
 
-    return state.copyWith(
-      queue: [...state.queue, command.song],
-    );
+    return state.copyWith(queue: [...state.queue, command.song]);
   }
 
   /// Add song to play next (after current song)
-  static PlaybackState addToPlayNext(PlaybackState state, AddToPlayNextCommand command) {
+  static PlaybackState addToPlayNext(
+    PlaybackState state,
+    AddToPlayNextCommand command,
+  ) {
     if (state.queue.contains(command.song)) {
       return state; // Don't add duplicates
     }
 
-    return state.copyWith(
-      queue: [command.song, ...state.queue],
-    );
+    return state.copyWith(queue: [command.song, ...state.queue]);
   }
 
   /// Clear the entire queue
-  static PlaybackState clearQueue(PlaybackState state, ClearQueueCommand command) {
-    return state.copyWith(
-      queue: [],
-    );
+  static PlaybackState clearQueue(
+    PlaybackState state,
+    ClearQueueCommand command,
+  ) {
+    return state.copyWith(queue: []);
   }
 
   /// Remove specific song from queue
-  static PlaybackState removeFromQueue(PlaybackState state, RemoveFromQueueCommand command) {
+  static PlaybackState removeFromQueue(
+    PlaybackState state,
+    RemoveFromQueueCommand command,
+  ) {
     return state.copyWith(
       queue: state.queue.where((song) => song != command.song).toList(),
     );
   }
 
   /// Start playlist playback
-  static PlaybackState startPlaylist(PlaybackState state, StartPlaylistCommand command) {
+  static PlaybackState startPlaylist(
+    PlaybackState state,
+    StartPlaylistCommand command,
+  ) {
     final startSong = command.playlist.elementAtOrNull(command.startIndex);
     if (startSong == null) return state;
 
-    final remainingSongs = command.playlist.skip(command.startIndex + 1).toList();
+    final remainingSongs = command.playlist
+        .skip(command.startIndex + 1)
+        .toList();
     final newQueue = [startSong, ...remainingSongs];
 
     return state.copyWith(
@@ -130,7 +141,10 @@ import '../../models/song.dart';
   }
 
   /// End playlist playback
-  static PlaybackState endPlaylist(PlaybackState state, EndPlaylistCommand command) {
+  static PlaybackState endPlaylist(
+    PlaybackState state,
+    EndPlaylistCommand command,
+  ) {
     return state.copyWith(
       currentPlaylist: null,
       // Note: We don't clear queue here in case songs were manually added
@@ -145,45 +159,58 @@ import '../../models/song.dart';
       return stop(state, StopCommand());
     }
 
-    return playSong(state, PlaySongCommand(nextSong, context: state.currentPlaylist));
+    return playSong(
+      state,
+      PlaySongCommand(nextSong, context: state.currentPlaylist),
+    );
   }
 
   /// Move to previous song or restart current song
-  static PlaybackState previousSong(PlaybackState state, PreviousSongCommand command) {
+  static PlaybackState previousSong(
+    PlaybackState state,
+    PreviousSongCommand command,
+  ) {
     final previousSong = _determinePreviousSong(state);
     if (previousSong == null) {
       // Restart current song
-      return state.copyWith(
-        position: Duration.zero,
-      );
+      return state.copyWith(position: Duration.zero);
     }
 
-    return playSong(state, PlaySongCommand(previousSong, context: state.currentPlaylist));
+    return playSong(
+      state,
+      PlaySongCommand(previousSong, context: state.currentPlaylist),
+    );
   }
 
   /// Toggle shuffle mode
-  static PlaybackState toggleShuffle(PlaybackState state, ToggleShuffleCommand command) {
-    return state.copyWith(
-      isShuffling: !state.isShuffling,
-    );
+  static PlaybackState toggleShuffle(
+    PlaybackState state,
+    ToggleShuffleCommand command,
+  ) {
+    return state.copyWith(isShuffling: !state.isShuffling);
   }
 
   /// Toggle repeat mode
-  static PlaybackState toggleRepeat(PlaybackState state, ToggleRepeatCommand command) {
-    return state.copyWith(
-      isRepeating: !state.isRepeating,
-    );
+  static PlaybackState toggleRepeat(
+    PlaybackState state,
+    ToggleRepeatCommand command,
+  ) {
+    return state.copyWith(isRepeating: !state.isRepeating);
   }
 
   /// Enable/disable equalizer
-  static PlaybackState setEqualizerEnabled(PlaybackState state, SetEqualizerEnabledCommand command) {
-    return state.copyWith(
-      isEqualizerEnabled: command.enabled,
-    );
+  static PlaybackState setEqualizerEnabled(
+    PlaybackState state,
+    SetEqualizerEnabledCommand command,
+  ) {
+    return state.copyWith(isEqualizerEnabled: command.enabled);
   }
 
   /// Apply equalizer bands
-  static PlaybackState applyEqualizerBands(PlaybackState state, ApplyEqualizerBandsCommand command) {
+  static PlaybackState applyEqualizerBands(
+    PlaybackState state,
+    ApplyEqualizerBandsCommand command,
+  ) {
     return state.copyWith(
       // Note: We'd need to add equalizerBands to PlaybackState
       // For now, this is a placeholder
@@ -191,7 +218,10 @@ import '../../models/song.dart';
   }
 
   /// Reset equalizer to flat response
-  static PlaybackState resetEqualizer(PlaybackState state, ResetEqualizerCommand command) {
+  static PlaybackState resetEqualizer(
+    PlaybackState state,
+    ResetEqualizerCommand command,
+  ) {
     return state.copyWith(
       // Note: We'd need to add equalizerBands to PlaybackState
       // For now, this is a placeholder
@@ -199,18 +229,20 @@ import '../../models/song.dart';
   }
 
   /// Set playback speed
-  static PlaybackState setPlaybackSpeed(PlaybackState state, SetPlaybackSpeedCommand command) {
+  static PlaybackState setPlaybackSpeed(
+    PlaybackState state,
+    SetPlaybackSpeedCommand command,
+  ) {
     const validSpeeds = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
     double clampedSpeed = validSpeeds.first;
     for (final speed in validSpeeds) {
-      if ((command.speed - speed).abs() < (command.speed - clampedSpeed).abs()) {
+      if ((command.speed - speed).abs() <
+          (command.speed - clampedSpeed).abs()) {
         clampedSpeed = speed;
       }
     }
 
-    return state.copyWith(
-      playbackSpeed: clampedSpeed,
-    );
+    return state.copyWith(playbackSpeed: clampedSpeed);
   }
 
   /// Load song without playing it
@@ -228,7 +260,10 @@ import '../../models/song.dart';
   static PlaybackState handleSongCompleted(PlaybackState state) {
     final nextSong = _determineNextSong(state);
     if (nextSong != null) {
-      return playSong(state, PlaySongCommand(nextSong, context: state.currentPlaylist));
+      return playSong(
+        state,
+        PlaySongCommand(nextSong, context: state.currentPlaylist),
+      );
     } else {
       return stop(state, StopCommand());
     }
@@ -242,21 +277,23 @@ import '../../models/song.dart';
   }
 
   static PlaybackState updateDuration(PlaybackState state, Duration duration) {
-    return state.copyWith(
-      duration: duration,
-    );
+    return state.copyWith(duration: duration);
   }
 
   /// Set playing status (called from platform updates)
   static PlaybackState setPlaying(PlaybackState state, bool isPlaying) {
-    final newStatus = isPlaying ? PlaybackStatus.playing : PlaybackStatus.paused;
-    return state.copyWith(
-      status: newStatus,
-    );
+    final newStatus = isPlaying
+        ? PlaybackStatus.playing
+        : PlaybackStatus.paused;
+    return state.copyWith(status: newStatus);
   }
 
   /// Set error state
-  static PlaybackState setError(PlaybackState state, String message, PlaybackErrorType type) {
+  static PlaybackState setError(
+    PlaybackState state,
+    String message,
+    PlaybackErrorType type,
+  ) {
     return state.copyWith(
       status: PlaybackStatus.error,
       lastError: PlaybackError(message, type),
@@ -265,20 +302,23 @@ import '../../models/song.dart';
 
   /// Clear error state
   static PlaybackState clearError(PlaybackState state) {
-    return state.copyWith(
-      lastError: null,
-    );
+    return state.copyWith(lastError: null);
   }
 
   /// Update spectrum data for visualization
-  static PlaybackState updateSpectrum(PlaybackState state, List<double> spectrumData) {
-    return state.copyWith(
-      spectrumData: spectrumData,
-    );
+  static PlaybackState updateSpectrum(
+    PlaybackState state,
+    List<double> spectrumData,
+  ) {
+    return state.copyWith(spectrumData: spectrumData);
   }
 
   /// Helper: Set up queue when playing a song
-  static List<Song> _setupQueue(List<Song> currentQueue, Song song, List<Song>? context) {
+  static List<Song> _setupQueue(
+    List<Song> currentQueue,
+    Song song,
+    List<Song>? context,
+  ) {
     if (context != null && context.isNotEmpty) {
       // When playing from playlist context, replace queue with playlist after current song
       final currentIndex = context.indexOf(song);

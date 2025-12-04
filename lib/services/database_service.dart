@@ -42,10 +42,16 @@ class DatabaseService {
     ''');
   }
 
-  Future<void> _upgradeDatabase(Database db, int oldVersion, int newVersion) async {
+  Future<void> _upgradeDatabase(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
     if (oldVersion < 2) {
       try {
-        await db.execute('ALTER TABLE songs ADD COLUMN is_favorite INTEGER DEFAULT 0');
+        await db.execute(
+          'ALTER TABLE songs ADD COLUMN is_favorite INTEGER DEFAULT 0',
+        );
       } catch (e) {
         if (!e.toString().contains('duplicate column name')) {
           rethrow;
@@ -83,20 +89,16 @@ class DatabaseService {
 
   Future<void> saveSong(Song song) async {
     final db = await database;
-    await db.insert(
-      'songs',
-      {
-        'title': song.title,
-        'artist': song.artist,
-        'album': song.album,
-        'path': song.path,
-        'duration': song.duration?.inMilliseconds ?? 0,
-        'is_favorite': 0, // Will be updated by toggleFavorite
-        'album_art': song.albumArt,
-        'track_number': song.trackNumber,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('songs', {
+      'title': song.title,
+      'artist': song.artist,
+      'album': song.album,
+      'path': song.path,
+      'duration': song.duration?.inMilliseconds ?? 0,
+      'is_favorite': 0, // Will be updated by toggleFavorite
+      'album_art': song.albumArt,
+      'track_number': song.trackNumber,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<Song>> loadAllSongs() async {
@@ -121,7 +123,11 @@ class DatabaseService {
 
   Future<List<Song>> loadFavorites() async {
     final db = await database;
-    final maps = await db.query('songs', where: 'is_favorite = ?', whereArgs: [1]);
+    final maps = await db.query(
+      'songs',
+      where: 'is_favorite = ?',
+      whereArgs: [1],
+    );
     return maps.map((map) {
       return Song(
         title: map['title'] as String,
@@ -149,11 +155,7 @@ class DatabaseService {
 
   Future<void> deleteSong(String path) async {
     final db = await database;
-    await db.delete(
-      'songs',
-      where: 'path = ?',
-      whereArgs: [path],
-    );
+    await db.delete('songs', where: 'path = ?', whereArgs: [path]);
   }
 
   Future<void> clearLibrary() async {

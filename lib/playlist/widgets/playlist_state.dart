@@ -2,10 +2,11 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:tunes4r/models/playlist.dart';
 import 'package:tunes4r/models/song.dart';
-import 'package:tunes4r/services/playlist_import_service.dart';
-import 'package:tunes4r/services/playlist_repository.dart';
+import 'package:tunes4r/playlist/models/playlist.dart';
+import 'package:tunes4r/playlist/models/playlist_import.dart';
+import 'package:tunes4r/playlist/services/playlist_import_service.dart';
+import 'package:tunes4r/playlist/services/playlist_repository.dart';
 import 'package:tunes4r/utils/theme_colors.dart';
 
 class PlaylistCallbacks {
@@ -28,10 +29,12 @@ class PlaylistCallbacks {
 
 class PlaylistState extends ChangeNotifier {
   // State variables
-  List<Song> _currentPlaylistSongs = []; // Current playing list (renamed for clarity)
+  List<Song> _currentPlaylistSongs =
+      []; // Current playing list (renamed for clarity)
   List<Playlist> _userPlaylists = [];
   Playlist? _currentPlaylist;
-  bool _isManagingPlaylists = true; // true = show playlist list, false = show current playlist
+  bool _isManagingPlaylists =
+      true; // true = show playlist list, false = show current playlist
 
   Database? _database;
   PlaylistRepository? _repository;
@@ -48,10 +51,12 @@ class PlaylistState extends ChangeNotifier {
     _currentPlaylistSongs = List.from(songs);
     notifyListeners();
   }
+
   set currentPlaylist(Playlist? playlist) {
     _currentPlaylist = playlist;
     notifyListeners();
   }
+
   set isManagingPlaylists(bool value) {
     _isManagingPlaylists = value;
     notifyListeners();
@@ -88,12 +93,16 @@ class PlaylistState extends ChangeNotifier {
     if (_database == null) return;
 
     try {
-      final playlistSongs = await _database!.query('playlists', orderBy: 'position ASC');
+      final playlistSongs = await _database!.query(
+        'playlists',
+        orderBy: 'position ASC',
+      );
 
       _currentPlaylistSongs = playlistSongs.map((map) {
         return library.firstWhere(
           (song) => song.path == map['song_path'],
-          orElse: () => Song(title: 'Unknown', path: map['song_path'] as String),
+          orElse: () =>
+              Song(title: 'Unknown', path: map['song_path'] as String),
         );
       }).toList();
       notifyListeners();
@@ -118,10 +127,14 @@ class PlaylistState extends ChangeNotifier {
   }
 
   Future<void> createPlaylist(String name) async {
-    if (_repository == null || name.trim().isEmpty || _callbacks == null) return;
+    if (_repository == null || name.trim().isEmpty || _callbacks == null)
+      return;
 
     try {
-      final newPlaylist = await _repository!.createPlaylist(name.trim(), PlaylistType.userCreated);
+      final newPlaylist = await _repository!.createPlaylist(
+        name.trim(),
+        PlaylistType.userCreated,
+      );
       _userPlaylists.add(newPlaylist);
       notifyListeners();
 
@@ -132,7 +145,11 @@ class PlaylistState extends ChangeNotifier {
     }
   }
 
-  Future<void> addSongToPlaylist(Playlist playlist, Song song, {bool showSnackbar = true}) async {
+  Future<void> addSongToPlaylist(
+    Playlist playlist,
+    Song song, {
+    bool showSnackbar = true,
+  }) async {
     if (_repository == null || playlist.id == null) return;
 
     try {
@@ -186,7 +203,9 @@ class PlaylistState extends ChangeNotifier {
   }
 
   Future<void> deletePlaylist(Playlist playlist, BuildContext context) async {
-    print('🔍 Attempting to delete playlist: ${playlist.name}, id: ${playlist.id}');
+    print(
+      '🔍 Attempting to delete playlist: ${playlist.name}, id: ${playlist.id}',
+    );
 
     if (_repository == null) {
       print('❌ Repository is null');
@@ -217,7 +236,9 @@ class PlaylistState extends ChangeNotifier {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            style: TextButton.styleFrom(foregroundColor: ThemeColorsUtil.textColorSecondary),
+            style: TextButton.styleFrom(
+              foregroundColor: ThemeColorsUtil.textColorSecondary,
+            ),
             child: const Text('Cancel'),
           ),
           TextButton(
@@ -257,9 +278,12 @@ class PlaylistState extends ChangeNotifier {
 
   void removeFromPlaylist(Song song, {Song? currentSong}) {
     // If removing the currently playing song, skip to next song
-    if (currentSong != null && song.path == currentSong.path && _callbacks != null) {
+    if (currentSong != null &&
+        song.path == currentSong.path &&
+        _callbacks != null) {
       final currentIndex = _currentPlaylistSongs.indexOf(song);
-      if (currentIndex >= 0 && currentIndex < _currentPlaylistSongs.length - 1) {
+      if (currentIndex >= 0 &&
+          currentIndex < _currentPlaylistSongs.length - 1) {
         // There's a next song - play it
         final nextSong = _currentPlaylistSongs[currentIndex + 1];
         _callbacks!.playSong(nextSong);
@@ -283,7 +307,10 @@ class PlaylistState extends ChangeNotifier {
     final currentPlaylist = _currentPlaylist;
     if (currentPlaylist?.id != null && _repository != null) {
       try {
-        await _repository!.reorderSongsInPlaylist(currentPlaylist!.id!, _currentPlaylistSongs);
+        await _repository!.reorderSongsInPlaylist(
+          currentPlaylist!.id!,
+          _currentPlaylistSongs,
+        );
       } catch (e) {
         print('Error reordering playlist: $e');
       }
@@ -310,9 +337,15 @@ class PlaylistState extends ChangeNotifier {
     BuildContext context,
     List<Song> library,
   ) async {
-    print('🔍 addSelectedSongsToPlaylist: Method called with ${selectedSongs.length} songs');
-    if (selectedSongs.isEmpty || _userPlaylists.isEmpty || _repository == null) {
-      print('❌ No songs selected, no playlists available, or repository not initialized');
+    print(
+      '🔍 addSelectedSongsToPlaylist: Method called with ${selectedSongs.length} songs',
+    );
+    if (selectedSongs.isEmpty ||
+        _userPlaylists.isEmpty ||
+        _repository == null) {
+      print(
+        '❌ No songs selected, no playlists available, or repository not initialized',
+      );
       print('   - selectedSongs.isEmpty: ${selectedSongs.isEmpty}');
       print('   - _userPlaylists.isEmpty: ${_userPlaylists.isEmpty}');
       print('   - _repository == null: ${_repository == null}');
@@ -330,43 +363,45 @@ class PlaylistState extends ChangeNotifier {
           style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
         ),
         children: [
-          ..._userPlaylists.map((playlist) => SimpleDialogOption(
-            onPressed: () => Navigator.of(context).pop(playlist),
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.playlist_play,
-                    color: ThemeColorsUtil.primaryColor,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          playlist.name,
-                          style: TextStyle(
-                            color: ThemeColorsUtil.textColorPrimary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          '${playlist.songs.length} ${playlist.songs.length == 1 ? 'song' : 'songs'}',
-                          style: TextStyle(
-                            color: ThemeColorsUtil.textColorSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+          ..._userPlaylists.map(
+            (playlist) => SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop(playlist),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.playlist_play,
+                      color: ThemeColorsUtil.primaryColor,
+                      size: 20,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            playlist.name,
+                            style: TextStyle(
+                              color: ThemeColorsUtil.textColorPrimary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            '${playlist.songs.length} ${playlist.songs.length == 1 ? 'song' : 'songs'}',
+                            style: TextStyle(
+                              color: ThemeColorsUtil.textColorSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          )),
+          ),
           const Divider(),
           SimpleDialogOption(
             onPressed: () => Navigator.of(context).pop(),
@@ -392,16 +427,23 @@ class PlaylistState extends ChangeNotifier {
     if (selectedPlaylist == null || selectedPlaylist.id == null) {
       print('❌ User cancelled playlist selection or playlist has no ID');
       print('   - selectedPlaylist == null: ${selectedPlaylist == null}');
-      print('   - selectedPlaylist.id == null: ${selectedPlaylist?.id == null}');
+      print(
+        '   - selectedPlaylist.id == null: ${selectedPlaylist?.id == null}',
+      );
       return;
     }
 
-    print('🎵 Starting bulk add of ${selectedSongs.length} songs to "${selectedPlaylist.name}" (ID: ${selectedPlaylist.id})...');
+    print(
+      '🎵 Starting bulk add of ${selectedSongs.length} songs to "${selectedPlaylist.name}" (ID: ${selectedPlaylist.id})...',
+    );
 
     try {
       // Use repository's bulk method for all database operations
       print('🔧 Calling addSongsToPlaylistBulk...');
-      await _repository!.addSongsToPlaylistBulk(selectedPlaylist.id!, selectedSongs.toList());
+      await _repository!.addSongsToPlaylistBulk(
+        selectedPlaylist.id!,
+        selectedSongs.toList(),
+      );
       print('🔧 Bulk add completed, reloading playlists...');
 
       // Reload playlists to get updated state (simpler than manual state management)
@@ -409,8 +451,9 @@ class PlaylistState extends ChangeNotifier {
       print('🔧 Playlists reloaded, showing success message');
 
       print('🎵 Bulk add completed successfully');
-      _callbacks?.showSnackBar('Added ${selectedSongs.length} ${selectedSongs.length == 1 ? 'song' : 'songs'} to "${selectedPlaylist.name}"!');
-
+      _callbacks?.showSnackBar(
+        'Added ${selectedSongs.length} ${selectedSongs.length == 1 ? 'song' : 'songs'} to "${selectedPlaylist.name}"!',
+      );
     } catch (e) {
       print('  ❌ Error during bulk add: $e');
       _callbacks?.showSnackBar('❌ Failed to add songs: $e');
@@ -418,7 +461,10 @@ class PlaylistState extends ChangeNotifier {
   }
 
   // Playlist import functionality - moved from main.dart
-  Future<void> showPlaylistImportDialog(BuildContext context, List<Song> library) async {
+  Future<void> showPlaylistImportDialog(
+    BuildContext context,
+    List<Song> library,
+  ) async {
     try {
       // Select file
       final result = await FilePicker.platform.pickFiles(
@@ -469,10 +515,14 @@ class PlaylistState extends ChangeNotifier {
       // Show import preview dialog and handle everything in one async flow
 
       // Get suggested playlist name
-      final suggestedName = importService.suggestPlaylistName(importResult.playlistName);
+      final suggestedName = importService.suggestPlaylistName(
+        importResult.playlistName,
+      );
 
       // Ask for playlist name
-      final TextEditingController controller = TextEditingController(text: suggestedName);
+      final TextEditingController controller = TextEditingController(
+        text: suggestedName,
+      );
 
       final playlistName = await showDialog<String>(
         context: context,
@@ -519,7 +569,9 @@ class PlaylistState extends ChangeNotifier {
                   controller: controller,
                   decoration: InputDecoration(
                     hintText: 'Enter playlist name',
-                    hintStyle: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+                    hintStyle: TextStyle(
+                      color: ThemeColorsUtil.textColorSecondary,
+                    ),
                   ),
                   autofocus: true,
                   style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
@@ -608,14 +660,20 @@ class PlaylistState extends ChangeNotifier {
               await loadPlaylist(newPlaylist);
               setManagingPlaylists(false);
 
-              _callbacks?.showSnackBar('✅ Imported ${importedSongs.length} songs to "$playlistName"');
+              _callbacks?.showSnackBar(
+                '✅ Imported ${importedSongs.length} songs to "$playlistName"',
+              );
             } else {
               // Fallback: couldn't create playlist properly
-              _callbacks?.showSnackBar('❌ Failed to create playlist with proper ID');
+              _callbacks?.showSnackBar(
+                '❌ Failed to create playlist with proper ID',
+              );
             }
           } else {
             // No songs to import
-            _callbacks?.showSnackBar('No songs could be imported from this playlist');
+            _callbacks?.showSnackBar(
+              'No songs could be imported from this playlist',
+            );
           }
         } catch (e) {
           // Close progress dialog on error if still open
@@ -623,7 +681,6 @@ class PlaylistState extends ChangeNotifier {
           _callbacks?.showSnackBar('Import failed: $e');
         }
       }
-
     } catch (e) {
       // Close any open dialogs
       Navigator.of(context).popUntil((route) => route.isFirst);

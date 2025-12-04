@@ -16,10 +16,10 @@ class ThemeState {
 
   // Initial empty state
   const ThemeState.initial()
-      : availableThemes = const {},
-        currentTheme = null,
-        isLoading = false,
-        errorMessage = null;
+    : availableThemes = const {},
+      currentTheme = null,
+      isLoading = false,
+      errorMessage = null;
 
   ThemeState copyWith({
     Map<String, ThemeConfig>? availableThemes,

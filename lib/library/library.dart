@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import '../models/song.dart';
-import '../services/database_service.dart';
-import '../utils/theme_colors.dart';
+import 'package:tunes4r/models/album.dart';
+import 'package:tunes4r/models/song.dart';
+import 'package:tunes4r/services/database_service.dart';
+import 'package:tunes4r/services/playback_manager.dart';
+import 'package:tunes4r/library/widgets/albums_tab.dart';
+import 'package:tunes4r/library/widgets/favorites_tab.dart';
 import 'library_actions.dart';
 import 'library_commands.dart';
 import 'library_state.dart';
@@ -26,8 +30,10 @@ class Library {
 
   // State management
   LibraryState _state = LibraryState.initial();
-  final StreamController<LibraryState> _stateController = StreamController<LibraryState>.broadcast();
-  final StreamController<LibraryEvent> _eventController = StreamController<LibraryEvent>.broadcast();
+  final StreamController<LibraryState> _stateController =
+      StreamController<LibraryState>.broadcast();
+  final StreamController<LibraryEvent> _eventController =
+      StreamController<LibraryEvent>.broadcast();
 
   Library._(this._databaseService);
 
@@ -58,8 +64,10 @@ class Library {
 
       _state = LibraryActions.libraryInitialized(_state, library, favorites);
 
-      LibraryLogger.libraryOperation('loaded successfully',
-        details: '${library.length} songs, ${favorites.length} favorites');
+      LibraryLogger.libraryOperation(
+        'loaded successfully',
+        details: '${library.length} songs, ${favorites.length} favorites',
+      );
     } catch (e) {
       _state = LibraryActions.libraryInitializationFailed(_state);
       LibraryLogger.warning('Failed to initialize library: $e', error: e);
@@ -86,11 +94,31 @@ class Library {
   /// Computed properties from state
   List<Song> get library => _state.library;
   List<Song> get favorites => _state.favorites;
-  List<Song> get displaySongs => _state.displaySongs; // Shows search results or all songs
+  List<Song> get displaySongs =>
+      _state.displaySongs; // Shows search results or all songs
   bool get isLoading => _state.isLoading;
   bool get isSearching => _state.isSearchActive;
   bool get hasSelection => _state.hasSelection;
   LibraryStatistics get statistics => _state.statistics;
+
+  /// Get all albums from the library, grouped by album name and sorted alphabetically
+  List<Album> getAlbums() {
+    final albumMap = <String, List<Song>>{};
+
+    for (final song in library) {
+      albumMap.putIfAbsent(song.album, () => []).add(song);
+    }
+
+    return albumMap.entries
+        .map((e) => Album(name: e.key, songs: e.value))
+        .toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+  }
+
+  /// Reactive stream of albums that updates when library changes
+  Stream<List<Album>> watchAlbums() {
+    return state.map((libraryState) => getAlbums());
+  }
 
   /// Command interface - all library operations go through here
 
@@ -105,13 +133,20 @@ class Library {
 
       _stateController.add(_state);
       if (emitEvent) {
-        _emitEvent(SongSavedEvent(song)); // Only emit for single-song operations
+        _emitEvent(
+          SongSavedEvent(song),
+        ); // Only emit for single-song operations
       }
 
       LibraryLogger.songOperation('saved successfully', song.title);
     } catch (e) {
-      LibraryLogger.warning('Failed to save song "${song.title}": $e', error: e);
-      _emitEvent(LibraryErrorEvent('Failed to add song "${song.title}"', e.toString()));
+      LibraryLogger.warning(
+        'Failed to save song "${song.title}": $e',
+        error: e,
+      );
+      _emitEvent(
+        LibraryErrorEvent('Failed to add song "${song.title}"', e.toString()),
+      );
       rethrow;
     }
   }
@@ -129,8 +164,16 @@ class Library {
 
       LibraryLogger.songOperation('removed successfully', song.title);
     } catch (e) {
-      LibraryLogger.warning('Failed to remove song "${song.title}": $e', error: e);
-      _emitEvent(LibraryErrorEvent('Failed to remove song "${song.title}"', e.toString()));
+      LibraryLogger.warning(
+        'Failed to remove song "${song.title}": $e',
+        error: e,
+      );
+      _emitEvent(
+        LibraryErrorEvent(
+          'Failed to remove song "${song.title}"',
+          e.toString(),
+        ),
+      );
       rethrow;
     }
   }
@@ -158,22 +201,38 @@ class Library {
   Future<void> toggleFavorite(Song song) async {
     try {
       final isCurrentlyFavorite = _state.favorites.contains(song);
-      final action = isCurrentlyFavorite ? 'removing from favorites' : 'adding to favorites';
+      final action = isCurrentlyFavorite
+          ? 'removing from favorites'
+          : 'adding to favorites';
 
       LibraryLogger.songOperation(action, song.title);
 
       final newFavoriteStatus = !isCurrentlyFavorite;
       await _databaseService.updateFavorite(song.path, newFavoriteStatus);
 
-      _state = LibraryActions.toggleFavorite(_state, ToggleFavoriteCommand(song));
+      _state = LibraryActions.toggleFavorite(
+        _state,
+        ToggleFavoriteCommand(song),
+      );
 
       _stateController.add(_state);
       _emitEvent(FavoriteToggledEvent(song, newFavoriteStatus));
 
-      LibraryLogger.songOperation(isCurrentlyFavorite ? 'removed from favorites' : 'added to favorites', song.title);
+      LibraryLogger.songOperation(
+        isCurrentlyFavorite ? 'removed from favorites' : 'added to favorites',
+        song.title,
+      );
     } catch (e) {
-      LibraryLogger.warning('Failed to toggle favorite status for "${song.title}": $e', error: e);
-      _emitEvent(LibraryErrorEvent('Failed to update favorites for "${song.title}"', e.toString()));
+      LibraryLogger.warning(
+        'Failed to toggle favorite status for "${song.title}": $e',
+        error: e,
+      );
+      _emitEvent(
+        LibraryErrorEvent(
+          'Failed to update favorites for "${song.title}"',
+          e.toString(),
+        ),
+      );
       rethrow;
     }
   }
@@ -219,12 +278,18 @@ class Library {
     try {
       LibraryLogger.selectionOperation('starting selection', 1);
 
-      _state = LibraryActions.startSelection(_state, StartSelectionCommand(initialSong));
+      _state = LibraryActions.startSelection(
+        _state,
+        StartSelectionCommand(initialSong),
+      );
       _stateController.add(_state);
 
       _emitEvent(SelectionModeChangedEvent(true, _state.selectedSongs));
 
-      LibraryLogger.selectionOperation('selection started', _state.selectedSongs.length);
+      LibraryLogger.selectionOperation(
+        'selection started',
+        _state.selectedSongs.length,
+      );
     } catch (e) {
       LibraryLogger.warning('Failed to start selection mode: $e', error: e);
     }
@@ -234,12 +299,20 @@ class Library {
   void toggleSongSelection(Song song) {
     try {
       final wasSelected = _state.selectedSongs.contains(song);
-      _state = LibraryActions.toggleSelection(_state, ToggleSelectionCommand(song));
+      _state = LibraryActions.toggleSelection(
+        _state,
+        ToggleSelectionCommand(song),
+      );
 
       _stateController.add(_state);
-      _emitEvent(SelectionModeChangedEvent(_state.isSelectingMode, _state.selectedSongs));
+      _emitEvent(
+        SelectionModeChangedEvent(_state.isSelectingMode, _state.selectedSongs),
+      );
 
-      LibraryLogger.songOperation(wasSelected ? 'deselected' : 'selected', song.title);
+      LibraryLogger.songOperation(
+        wasSelected ? 'deselected' : 'selected',
+        song.title,
+      );
     } catch (e) {
       LibraryLogger.warning('Failed to toggle song selection: $e', error: e);
     }
@@ -253,7 +326,10 @@ class Library {
 
       _emitEvent(SelectionModeChangedEvent(true, _state.selectedSongs));
 
-      LibraryLogger.selectionOperation('selected all', _state.selectedSongs.length);
+      LibraryLogger.selectionOperation(
+        'selected all',
+        _state.selectedSongs.length,
+      );
     } catch (e) {
       LibraryLogger.warning('Failed to select all songs: $e', error: e);
     }
@@ -281,7 +357,10 @@ class Library {
 
       _emitEvent(SelectionModeChangedEvent(false, _state.selectedSongs));
 
-      LibraryLogger.selectionOperation('selection finished', _state.selectedSongs.length);
+      LibraryLogger.selectionOperation(
+        'selection finished',
+        _state.selectedSongs.length,
+      );
 
       return _state.selectedSongs;
     } catch (e) {
@@ -309,7 +388,10 @@ class Library {
     try {
       return await _mediaScanService.scanDirectory(directoryPath);
     } catch (e) {
-      LibraryLogger.warning('Error scanning directory "$directoryPath": $e', error: e);
+      LibraryLogger.warning(
+        'Error scanning directory "$directoryPath": $e',
+        error: e,
+      );
       return [];
     }
   }
@@ -320,7 +402,8 @@ class Library {
     if (!Platform.isAndroid) return true;
 
     try {
-      final manageStoragePermission = await Permission.manageExternalStorage.status;
+      final manageStoragePermission =
+          await Permission.manageExternalStorage.status;
       final audioPermission = await Permission.audio.status;
       return manageStoragePermission.isGranted && audioPermission.isGranted;
     } catch (e) {
@@ -336,7 +419,9 @@ class Library {
 
     try {
       // Process all audio files
-      final newSongs = await _metadataExtractionService.extractMultipleMetadata(filePaths);
+      final newSongs = await _metadataExtractionService.extractMultipleMetadata(
+        filePaths,
+      );
 
       // Determine if this is a bulk import (more than 1 file)
       final isBulkImport = newSongs.length > 1;
@@ -353,7 +438,10 @@ class Library {
         _emitEvent(FilesImportedEvent(importedCount));
       }
 
-      LibraryLogger.libraryOperation('imported successfully', details: 'Added $importedCount songs');
+      LibraryLogger.libraryOperation(
+        'imported successfully',
+        details: 'Added $importedCount songs',
+      );
     } catch (e) {
       LibraryLogger.warning('Error during import: $e', error: e);
       rethrow;
@@ -365,6 +453,18 @@ class Library {
   /// Get the navigation title for the AppBar
   /// Domain provides data for UI to build widgets
   String getNavigationTitle() => 'Library (${library.length})';
+
+  /// Provide the Albums tab widget - DDD encapsulation
+  /// Each BC encapsulates its view components completely
+  Widget getAlbumsTab(PlaybackManager audioPlayer) {
+    return AlbumsTab(libraryContext: this, playbackManager: audioPlayer);
+  }
+
+  /// Provide the Favorites tab widget - DDD encapsulation
+  /// Each BC encapsulates its view components completely
+  Widget getFavoritesTab(PlaybackManager audioPlayer) {
+    return FavoritesTab(libraryContext: this, playbackManager: audioPlayer);
+  }
 
   /// Private methods
 

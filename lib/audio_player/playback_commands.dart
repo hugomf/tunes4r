@@ -185,9 +185,4 @@ class PlaybackErrorEvent extends PlaybackEvent {
 }
 
 /// Helper types
-enum QueueChangeType {
-  added,
-  removed,
-  cleared,
-  reordered,
-}
+enum QueueChangeType { added, removed, cleared, reordered }

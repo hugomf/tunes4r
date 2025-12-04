@@ -29,7 +29,6 @@ class ThemeManager with ChangeNotifier {
       _isLoaded = true;
 
       print('Simple theme manager loaded ${_themes.length} themes');
-
     } catch (e) {
       print('Theme initialization failed: $e');
       throw e;
@@ -41,7 +40,7 @@ class ThemeManager with ChangeNotifier {
     final theme = _themes[themeName];
     if (theme != null && theme != _currentTheme) {
       _currentTheme = theme;
-      _changeCounter++;  // Increment for UI rebuilds
+      _changeCounter++; // Increment for UI rebuilds
       notifyListeners(); // Notify MaterialApp to rebuild theme
       print('Theme switched to: ${theme.name}');
     } else if (theme == null) {

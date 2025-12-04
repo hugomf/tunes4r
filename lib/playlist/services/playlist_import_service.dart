@@ -1,10 +1,10 @@
 import 'dart:io';
 import '../models/playlist_import.dart';
-import '../models/song.dart';
 import '../models/playlist.dart';
+import '../../../models/song.dart';
 import 'playlist_parser.dart';
-import 'song_matcher.dart';
-import 'metadata_enricher.dart';
+import '../../../services/song_matcher.dart';
+import '../../../services/metadata_enricher.dart';
 
 // Main service for importing playlists
 class PlaylistImportService {
@@ -118,8 +118,8 @@ class PlaylistImportService {
     final queryLower = query.toLowerCase();
     return library.where((song) {
       return song.title.toLowerCase().contains(queryLower) ||
-             song.artist.toLowerCase().contains(queryLower) ||
-             (song.album.toLowerCase().contains(queryLower) ?? false);
+          song.artist.toLowerCase().contains(queryLower) ||
+          (song.album.toLowerCase().contains(queryLower) ?? false);
     }).toList();
   }
 
@@ -171,7 +171,8 @@ class PlaylistImportPreview {
   int get totalTracks => importResult.totalTracks;
   int get willBeImported => importResult.autoImported;
   int get needsAction => importResult.needsConfirmation + importResult.notFound;
-  double get successRate => totalTracks > 0 ? willBeImported / totalTracks : 0.0;
+  double get successRate =>
+      totalTracks > 0 ? willBeImported / totalTracks : 0.0;
 }
 
 // Import progress tracking
@@ -186,16 +187,9 @@ class ImportProgress {
     this.message,
   });
 
-  ImportProgress.empty()
-      : stage = 'idle',
-        progress = 0.0,
-        message = null;
+  ImportProgress.empty() : stage = 'idle', progress = 0.0, message = null;
 
-  ImportProgress copyWith({
-    String? stage,
-    double? progress,
-    String? message,
-  }) {
+  ImportProgress copyWith({String? stage, double? progress, String? message}) {
     return ImportProgress(
       stage: stage ?? this.stage,
       progress: progress ?? this.progress,
@@ -217,7 +211,8 @@ class PlaylistImportException implements Exception {
   });
 
   @override
-  String toString() => 'PlaylistImportException: $message${fileName != null ? ' (File: $fileName)' : ''}';
+  String toString() =>
+      'PlaylistImportException: $message${fileName != null ? ' (File: $fileName)' : ''}';
 }
 
 // Validation utilities
