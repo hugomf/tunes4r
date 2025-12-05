@@ -30,6 +30,10 @@ class AudioPlayer {
 
   AudioPlayer._(this._platformService);
 
+  //For Previous Logic
+  DateTime? _lastPreviousClickTime;
+  Timer? _previousClickTimer;
+
   /// Factory constructor that chooses the appropriate platform service
   factory AudioPlayer() {
     // Use JustAudioPlatformService for all platforms - it's more robust and cross-platform
@@ -116,6 +120,7 @@ class AudioPlayer {
   /// Dispose of resources
   Future<void> dispose() async {
     _spectrumTimer?.cancel();
+    _previousClickTimer?.cancel();  // Add this line
     await _platformService.dispose();
     _mediaControlService.dispose();
     await _stateController.close();
@@ -242,25 +247,50 @@ class AudioPlayer {
       final newState = PlaybackActions.nextSong(_state, NextSongCommand());
       if (!identical(newState.currentSong, _state.currentSong) &&
           newState.currentSong != null) {
-        await playSong(newState.currentSong!);
+        // ✅ FIX: Pass the playlist context from newState
+        await playSong(newState.currentSong!, context: newState.currentPlaylist);
       }
     }
   }
 
-  Future<void> previous() async {
+
+Future<void> previous() async {
+  final now = DateTime.now();
+  
+  // If we're more than 3 seconds into the song, just restart
+  if (_state.position > const Duration(seconds: 3)) {
+    await seekTo(Duration.zero);
+    return;
+  }
+  
+  // Otherwise, check for double-click to go to previous song
+  if (_lastPreviousClickTime != null && 
+      now.difference(_lastPreviousClickTime!) < const Duration(milliseconds: 300)) {
+    // Double-click detected - go to previous song
+    _previousClickTimer?.cancel();
+    _lastPreviousClickTime = null;
+    
     final newState = PlaybackActions.previousSong(
       _state,
       PreviousSongCommand(),
     );
-    if (!identical(newState.position, _state.position) &&
-        newState.position == Duration.zero) {
-      // Just seeking to start of current song
-      await seekTo(Duration.zero);
-    } else if (newState.currentSong != null &&
+    
+    if (newState.currentSong != null &&
         newState.currentSong != _state.currentSong) {
-      await playSong(newState.currentSong!);
+      await playSong(newState.currentSong!, context: newState.currentPlaylist);
     }
+  } else {
+    // First click within first 3 seconds - restart song
+    _lastPreviousClickTime = now;
+    
+    _previousClickTimer?.cancel();
+    _previousClickTimer = Timer(const Duration(milliseconds: 300), () {
+      _lastPreviousClickTime = null;
+    });
+    
+    await seekTo(Duration.zero);
   }
+}
 
   Future<void> addToQueue(Song song) async {
     final newState = PlaybackActions.addToQueue(

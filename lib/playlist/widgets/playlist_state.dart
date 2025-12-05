@@ -145,42 +145,84 @@ class PlaylistState extends ChangeNotifier {
     }
   }
 
-  Future<void> addSongToPlaylist(
-    Playlist playlist,
-    Song song, {
-    bool showSnackbar = true,
-  }) async {
-    if (_repository == null || playlist.id == null) return;
+Future<void> addSongToPlaylist(
+  Playlist playlist,
+  Song song, {
+  bool showSnackbar = true,
+}) async {
+  if (_repository == null || playlist.id == null) return;
 
-    try {
-      await _repository!.addSongToPlaylist(playlist.id!, song);
-
-      // Update playlist in memory
-      final updatedPlaylist = playlist.copyWith(
-        songs: [...playlist.songs, song],
-        updatedAt: DateTime.now(),
-      );
-
-      final index = _userPlaylists.indexOf(playlist);
-      if (index != -1) {
-        _userPlaylists[index] = updatedPlaylist;
+  try {
+    debugPrint('🔍 addSongToPlaylist called for: ${song.title}');
+    debugPrint('   Playlist: ${playlist.name} (ID: ${playlist.id})');
+    
+    // IMPORTANT: Check database state, not just memory
+    // The in-memory state might be out of sync with database
+    final existingInDb = await _database!.query(
+      'playlist_songs',
+      where: 'playlist_id = ? AND song_path = ?',
+      whereArgs: [playlist.id, song.path],
+    );
+    
+    if (existingInDb.isNotEmpty) {
+      debugPrint('   ⚠️ Song already in database, syncing memory state...');
+      
+      // Sync memory state with database
+      if (_currentPlaylist?.id == playlist.id && 
+          !_currentPlaylistSongs.any((s) => s.path == song.path)) {
+        _currentPlaylistSongs.add(song);
+        notifyListeners();
       }
+      
+      throw Exception('Song already exists in playlist');
+    }
 
+    debugPrint('   📝 Calling repository to add song...');
+    await _repository!.addSongToPlaylist(playlist.id!, song);
+    debugPrint('   ✅ Repository add successful');
+
+    // Update playlist in _userPlaylists using fresh reference
+    final playlistIndex = _userPlaylists.indexWhere((p) => p.id == playlist.id);
+    if (playlistIndex == -1) {
+      debugPrint('   ⚠️ Playlist not found in _userPlaylists!');
+      return;
+    }
+    
+    final currentPlaylistFromList = _userPlaylists[playlistIndex];
+    final updatedPlaylist = currentPlaylistFromList.copyWith(
+      songs: [...currentPlaylistFromList.songs, song],
+      updatedAt: DateTime.now(),
+    );
+
+    _userPlaylists[playlistIndex] = updatedPlaylist;
+    debugPrint('   📋 Updated _userPlaylists[$playlistIndex], new song count: ${updatedPlaylist.songs.length}');
+
+    // CRITICAL: Also update _currentPlaylistSongs if this is the active playlist
+    if (_currentPlaylist?.id == playlist.id) {
+      _currentPlaylistSongs.add(song);
+      _currentPlaylist = updatedPlaylist;
+      debugPrint('   📋 Updated _currentPlaylistSongs, new count: ${_currentPlaylistSongs.length}');
+    }
+
+    if (showSnackbar) {
+      _callbacks?.showSnackBar('Added to "${playlist.name}"');
+    }
+    notifyListeners();
+    debugPrint('   🔔 notifyListeners() called');
+  } catch (e) {
+    debugPrint('   💥 Exception caught: $e');
+    if (e.toString().contains('already exists')) {
+      throw Exception('Song already exists in playlist');
+    } else {
+      print('Error adding song "${song.title}" to playlist: $e');
       if (showSnackbar) {
-        _callbacks?.showSnackBar('Added to "${playlist.name}"');
+        _callbacks?.showSnackBar('❌ Failed to add song: $e');
       }
-      notifyListeners();
-    } catch (e) {
-      if (e.toString().contains('already exists')) {
-        // Song already exists - silently continue for bulk operations
-        if (showSnackbar) {
-          _callbacks?.showSnackBar('Song already in playlist');
-        }
-      } else {
-        print('Error adding song "${song.title}" to playlist: $e');
-      }
+      rethrow;
     }
   }
+}
+
 
   Future<void> loadPlaylist(Playlist playlist, {bool autoPlay = false}) async {
     _currentPlaylistSongs = List.from(playlist.songs);
@@ -322,11 +364,46 @@ class PlaylistState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void clearCurrentPlaylist() {
+  Future<void> clearCurrentPlaylist() async {
     _currentPlaylistSongs.clear();
-    if (_database != null && _currentPlaylist != null) {
-      _savePlaylist();
+
+    // For user playlists, delete songs from database and update the playlist in memory
+    if (_currentPlaylist != null && _currentPlaylist!.id != null && _database != null) {
+      try {
+        // Delete all songs for this playlist from playlist_songs table
+        await _database!.delete(
+          'playlist_songs',
+          where: 'playlist_id = ?',
+          whereArgs: [_currentPlaylist!.id],
+        );
+
+        // Update playlist's updated_at timestamp
+        await _database!.update(
+          'user_playlists',
+          {'updated_at': DateTime.now().toIso8601String()},
+          where: 'id = ?',
+          whereArgs: [_currentPlaylist!.id],
+        );
+
+        // Update the playlist in the userPlaylists list to show 0 songs
+        final updatedPlaylist = _currentPlaylist!.copyWith(
+          songs: [],
+          updatedAt: DateTime.now(),
+        );
+        final index = _userPlaylists.indexOf(_currentPlaylist!);
+        if (index != -1) {
+          _userPlaylists[index] = updatedPlaylist;
+        }
+      } catch (e) {
+        print('Error clearing user playlist: $e');
+      }
+    } else {
+      // Legacy playlist - save empty playlist (for backward compatibility)
+      if (_database != null) {
+        await _savePlaylist();
+      }
     }
+
     _currentPlaylist = null;
     notifyListeners();
   }

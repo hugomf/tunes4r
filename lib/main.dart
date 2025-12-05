@@ -206,7 +206,11 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
       // Initialize Library bounded context with reactive state
       await _libraryContext.initialize();
 
-      // Add reactive listeners for legacy compatibility (will be removed when other tabs are updated)
+      // Set initial state directly (streams might not replay to late subscribers)
+      _library = _libraryContext.library;
+      _favorites = _libraryContext.favorites;
+
+      // Add reactive listeners for future updates
       _libraryContext.state.listen((state) {
         if (mounted) {
           setState(() {
@@ -442,6 +446,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     if (_playlistState != null) {
       return PlaylistWidget(
         playlistState: _playlistState!,
+        library: _library,
         addToPlaylist: (song) => _audioPlayer.addToQueue(song),
         addToPlayNext: (song, showSnackbar) => _audioPlayer.addToPlayNext(song),
         playSong: _playSong,
@@ -650,8 +655,14 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () {
+      onTap: () async {
         setState(() => _selectedIndex = index);
+
+        // Reload playlist data when switching to playlist tab
+        if (index == 1 && _playlistState != null) {
+          await _playlistState!.loadUserPlaylists(_library);
+        }
+
         if (isMobile) Navigator.pop(context);
       },
       child: Container(

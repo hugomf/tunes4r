@@ -14,17 +14,21 @@ class PlaybackActions {
   }
 
   /// Play a song, optionally with playlist context
-  static PlaybackState playSong(PlaybackState state, PlaySongCommand command) {
-    final newQueue = _setupQueue(state.queue, command.song, command.context);
+static PlaybackState playSong(PlaybackState state, PlaySongCommand command) {
+  print('🎵 playSong called');
+  print('   Song: ${command.song.title}');
+  print('   Context provided: ${command.context?.length ?? 0} songs');
+  
+  final newQueue = _setupQueue(state.queue, command.song, command.context);
 
-    return state.copyWith(
-      currentSong: command.song,
-      status: PlaybackStatus.loading,
-      queue: newQueue,
-      currentPlaylist: command.context,
-      lastError: null, // Clear any previous errors
-    );
-  }
+  return state.copyWith(
+    currentSong: command.song,
+    status: PlaybackStatus.loading,
+    queue: newQueue,
+    currentPlaylist: command.context,
+    lastError: null,
+  );
+}
 
   /// Pause playback
   static PlaybackState pause(PlaybackState state, PauseCommand command) {
@@ -152,18 +156,31 @@ class PlaybackActions {
   }
 
   /// Move to next song in playlist or queue
-  static PlaybackState nextSong(PlaybackState state, NextSongCommand command) {
-    final nextSong = _determineNextSong(state);
-    if (nextSong == null) {
-      // No next song available, stop playback
-      return stop(state, StopCommand());
-    }
-
-    return playSong(
-      state,
-      PlaySongCommand(nextSong, context: state.currentPlaylist),
-    );
+/// Move to next song in playlist or queue
+static PlaybackState nextSong(PlaybackState state, NextSongCommand command) {
+  final nextSong = _determineNextSong(state);
+  if (nextSong == null) {
+    // No next song available, stop playback
+    return stop(state, StopCommand());
   }
+
+  // Remove the next song from queue before playing
+  // (it will be the current song, no longer queued)
+  final updatedQueue = List<Song>.from(state.queue);
+  if (updatedQueue.isNotEmpty && updatedQueue.first == nextSong) {
+    updatedQueue.removeAt(0);
+  } else {
+    updatedQueue.remove(nextSong);
+  }
+
+  // Play the next song with updated queue
+  final newState = playSong(
+    state,
+    PlaySongCommand(nextSong, context: state.currentPlaylist),
+  );
+  
+  return newState.copyWith(queue: updatedQueue);
+}
 
   /// Move to previous song or restart current song
   static PlaybackState previousSong(
@@ -257,17 +274,28 @@ class PlaybackActions {
   }
 
   /// Handle automatic song completion (when song ends naturally)
-  static PlaybackState handleSongCompleted(PlaybackState state) {
-    final nextSong = _determineNextSong(state);
-    if (nextSong != null) {
-      return playSong(
-        state,
-        PlaySongCommand(nextSong, context: state.currentPlaylist),
-      );
+/// Handle automatic song completion (when song ends naturally)
+static PlaybackState handleSongCompleted(PlaybackState state) {
+  final nextSong = _determineNextSong(state);
+  if (nextSong != null) {
+    // Remove the next song from queue before playing
+    final updatedQueue = List<Song>.from(state.queue);
+    if (updatedQueue.isNotEmpty && updatedQueue.first == nextSong) {
+      updatedQueue.removeAt(0);
     } else {
-      return stop(state, StopCommand());
+      updatedQueue.remove(nextSong);
     }
+
+    final newState = playSong(
+      state,
+      PlaySongCommand(nextSong, context: state.currentPlaylist),
+    );
+    
+    return newState.copyWith(queue: updatedQueue);
+  } else {
+    return stop(state, StopCommand());
   }
+}
 
   /// Set playback position and duration (called from platform updates)
   static PlaybackState updatePosition(PlaybackState state, Duration position) {
@@ -314,64 +342,79 @@ class PlaybackActions {
   }
 
   /// Helper: Set up queue when playing a song
-  static List<Song> _setupQueue(
-    List<Song> currentQueue,
-    Song song,
-    List<Song>? context,
-  ) {
-    if (context != null && context.isNotEmpty) {
-      // When playing from playlist context, replace queue with playlist after current song
-      final currentIndex = context.indexOf(song);
-      if (currentIndex >= 0 && currentIndex < context.length - 1) {
-        return context.sublist(currentIndex + 1);
-      } else {
-        return [];
-      }
-    } else if (currentQueue.isEmpty || !currentQueue.contains(song)) {
-      // Single song playback, no queue changes needed
-      return currentQueue;
+static List<Song> _setupQueue(
+  List<Song> currentQueue,
+  Song song,
+  List<Song>? context,
+) {
+  print('🔧 _setupQueue called');
+  print('   Song: ${song.title}');
+  print('   Current queue length: ${currentQueue.length}');
+  print('   Context playlist length: ${context?.length ?? 0}');
+  
+  if (context != null && context.isNotEmpty) {
+    final currentIndex = context.indexOf(song);
+    print('   Song index in context: $currentIndex');
+    
+    if (currentIndex >= 0 && currentIndex < context.length - 1) {
+      final newQueue = context.sublist(currentIndex + 1);
+      print('   ➡️ Setting queue to remaining playlist songs: ${newQueue.length} songs');
+      return newQueue;
     } else {
-      // Song is already in queue, keep queue as-is
-      return currentQueue;
+      print('   ➡️ At end of playlist, clearing queue');
+      return [];
     }
   }
+  
+  print('   ➡️ No context, keeping current queue');
+  return currentQueue;
+}
 
   /// Helper: Determine next song based on state and modes
-  static Song? _determineNextSong(PlaybackState state) {
-    // First priority: explicit queue
-    if (state.queue.isNotEmpty) {
-      if (state.isShuffling) {
-        final random = Random();
-        return state.queue[random.nextInt(state.queue.length)];
-      } else {
-        return state.queue.first;
-      }
+static Song? _determineNextSong(PlaybackState state) {
+  print('🔍 _determineNextSong called');
+  print('   Queue length: ${state.queue.length}');
+  print('   Shuffling: ${state.isShuffling}');
+  print('   Current song: ${state.currentSong?.title}');
+  
+  // First priority: explicit queue
+  if (state.queue.isNotEmpty) {
+    print('   Queue has songs: ${state.queue.map((s) => s.title).join(", ")}');
+    
+    if (state.isShuffling) {
+      final random = Random();
+      final next = state.queue[random.nextInt(state.queue.length)];
+      print('   ➡️ Shuffling, picked: ${next.title}');
+      return next;
+    } else {
+      final next = state.queue.first;
+      print('   ➡️ Sequential, next is: ${next.title}');
+      return next;
     }
-
-    // Second priority: playlist context
-    if (state.currentPlaylist != null && state.currentSong != null) {
-      final currentIndex = state.currentPlaylist!.indexOf(state.currentSong!);
-      if (currentIndex >= 0) {
-        if (state.isShuffling) {
-          // Shuffle within playlist (excluding current song)
-          final remainingSongs = List<Song>.from(state.currentPlaylist!)
-            ..removeAt(currentIndex);
-          if (remainingSongs.isNotEmpty) {
-            final random = Random();
-            return remainingSongs[random.nextInt(remainingSongs.length)];
-          }
-        } else if (currentIndex < state.currentPlaylist!.length - 1) {
-          // Next in playlist
-          return state.currentPlaylist![currentIndex + 1];
-        } else if (state.isRepeating) {
-          // Loop back to beginning
-          return state.currentPlaylist!.first;
-        }
-      }
-    }
-
-    return null; // No next song available
   }
+
+  print('   Queue is empty, checking playlist context');
+  // Second priority: playlist context
+  if (state.currentPlaylist != null && state.currentSong != null) {
+    print('   Playlist length: ${state.currentPlaylist!.length}');
+    final currentIndex = state.currentPlaylist!.indexOf(state.currentSong!);
+    print('   Current index in playlist: $currentIndex');
+    
+    if (currentIndex >= 0) {
+      if (state.isShuffling) {
+        print('   ➡️ Shuffling within playlist');
+        // Shuffle within playlist
+      } else if (currentIndex < state.currentPlaylist!.length - 1) {
+        final next = state.currentPlaylist![currentIndex + 1];
+        print('   ➡️ Next in playlist: ${next.title}');
+        return next;
+      }
+    }
+  }
+
+  print('   ❌ No next song found');
+  return null;
+}
 
   /// Helper: Determine previous song in playlist
   static Song? _determinePreviousSong(PlaybackState state) {
