@@ -231,20 +231,20 @@ class AppError {
     }
   }
 
-  /// Get suggested recovery action
-  String get recoveryAction {
+  /// Should this error trigger automatic retry
+  bool get shouldRetryAutomatically {
+    return isRecoverable && type == ErrorType.database;
+  }
+
+  /// Get the suggested delay before retry (in seconds)
+  Duration get retryDelay {
     switch (type) {
       case ErrorType.network:
-        return 'Check your internet connection and try again';
+        return const Duration(seconds: 2);
       case ErrorType.database:
-        return 'Try refreshing the app or restarting';
-      case ErrorType.fileSystem:
-        return 'Check file permissions and try a different location';
-      case ErrorType.businessLogic:
-      case ErrorType.validation:
-        return 'Please correct the input and try again';
-      case ErrorType.unknown:
-        return 'Please contact support if this persists';
+        return const Duration(milliseconds: 500);
+      default:
+        return const Duration(seconds: 5);
     }
   }
 
