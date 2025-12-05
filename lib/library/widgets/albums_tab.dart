@@ -6,6 +6,7 @@ import 'package:tunes4r/models/song.dart';
 import 'package:tunes4r/library/library.dart';
 import 'package:tunes4r/services/playback_manager.dart';
 import 'package:tunes4r/utils/theme_colors.dart';
+import 'package:tunes4r/widgets/cached_memory_image.dart';
 
 class AlbumsTab extends StatefulWidget {
   final Library libraryContext;
@@ -21,10 +22,212 @@ class AlbumsTab extends StatefulWidget {
   State<AlbumsTab> createState() => _AlbumsTabState();
 }
 
+// Enhanced Album Grid Card with Hover Effects
+class _AlbumCardWithHover extends StatefulWidget {
+  final Album album;
+  final Song? coverSong;
+  final VoidCallback onTap;
+
+  const _AlbumCardWithHover({
+    required this.album,
+    required this.coverSong,
+    required this.onTap,
+  });
+
+  @override
+  State<_AlbumCardWithHover> createState() => _AlbumCardWithHoverState();
+}
+
+class _AlbumCardWithHoverState extends State<_AlbumCardWithHover> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: _isHovered ? 1.0 : 0.0),
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutQuart,
+        builder: (context, animation, child) {
+          final scale = 1.0 + (animation * 0.05); // Scale up to 5%
+          final elevation = 20 + (animation * 10); // Elevation from 20 to 30
+
+          return Transform.scale(
+            scale: scale,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: ThemeColorsUtil.primaryColor.withOpacity(0.3 + (animation * 0.1)),
+                    blurRadius: elevation,
+                    spreadRadius: -5 + (animation * 2),
+                    offset: Offset(0, 8 + (animation * 4)),
+                  ),
+                ],
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: widget.onTap,
+                child: child,
+              ),
+            ),
+          );
+        },
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              // Album art with cached loading and gradients
+              Positioned.fill(
+                child: Transform.scale(
+                  scale: 1.1,
+                  child: CachedAlbumArtOrPlaceholder(
+                    bytes: widget.coverSong?.albumArt,
+                    borderRadius: BorderRadius.circular(16),
+                    useHero: true,
+                    heroTag: 'album-art-${widget.album.name}',
+                  ),
+                ),
+              ),
+
+              // Enhanced gradient overlay with blur effect
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.1),
+                        Colors.black.withOpacity(0.85),
+                      ],
+                      stops: const [0.3, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Album info with improved styling and hover animations
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 200),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14 + (_isHovered ? 1 : 0),
+                          letterSpacing: 0.3,
+                          shadows: [
+                            Shadow(
+                              blurRadius: 12,
+                              color: Colors.black,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          widget.album.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: ThemeColorsUtil.primaryColor.withOpacity(0.25),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: ThemeColorsUtil.primaryColor.withOpacity(0.4),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          '${widget.album.trackCount} ${widget.album.trackCount == 1 ? 'track' : 'tracks'}',
+                          style: TextStyle(
+                            color: ThemeColorsUtil.primaryColor.withOpacity(0.9),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Hover effect overlay - shows play button or scale indicator
+              if (_isHovered)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: ThemeColorsUtil.primaryColor.withOpacity(0.1),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          ThemeColorsUtil.primaryColor.withOpacity(0.2),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.play_circle_filled,
+                        color: Colors.white.withOpacity(0.9),
+                        size: 48,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _AlbumsTabState extends State<AlbumsTab> {
   // Use Library BC to get albums - no domain logic here
   List<Album> get albums => widget.libraryContext.getAlbums();
   int get albumCount => albums.length;
+
+  // Parallax scroll controller
+  final ScrollController _scrollController = ScrollController();
+  double _scrollOffset = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    setState(() {
+      _scrollOffset = _scrollController.offset;
+    });
+  }
 
   int _crossAxisCount(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
@@ -52,162 +255,37 @@ class _AlbumsTabState extends State<AlbumsTab> {
               style: TextStyle(fontSize: 16),
             ),
           )
-        : ListView(
-            children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Text(
-                  'Albums',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        : CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              // Album Grid in Sliver
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: _crossAxisCount(context),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: _aspectRatio(context),
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final album = albums[index];
+                      final coverSong = album.coverSong;
+
+                      return _AlbumCardWithHover(
+                        album: album,
+                        coverSong: coverSong,
+                        onTap: () => _navigateToAlbum(album),
+                      );
+                    },
+                    childCount: albums.length,
+                  ),
                 ),
               ),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: _crossAxisCount(context),
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: _aspectRatio(context),
-                ),
-                itemCount: albums.length,
-                itemBuilder: (context, index) {
-                  final album = albums[index];
-                  final coverSong = album.coverSong;
 
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () => _navigateToAlbum(album),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: ThemeColorsUtil.primaryColor.withOpacity(
-                              0.3,
-                            ),
-                            blurRadius: 20,
-                            spreadRadius: -5,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Stack(
-                          children: [
-                            // Album art or gradient fallback with scale effect
-                            Positioned.fill(
-                              child: Transform.scale(
-                                scale: 1.1,
-                                child: coverSong?.albumArt != null
-                                    ? Image.memory(
-                                        coverSong!.albumArt!,
-                                        fit: BoxFit.cover,
-                                      )
-                                    : Container(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                            colors:
-                                                ThemeColorsUtil.albumGradient,
-                                          ),
-                                        ),
-                                        child: const Icon(
-                                          Icons.album,
-                                          size: 56,
-                                          color: Colors.white70,
-                                        ),
-                                      ),
-                              ),
-                            ),
-
-                            // Enhanced gradient overlay with blur effect
-                            Positioned.fill(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.black.withOpacity(0.1),
-                                      Colors.black.withOpacity(0.85),
-                                    ],
-                                    stops: const [0.3, 1.0],
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            // Album info with improved styling
-                            Positioned(
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              child: Padding(
-                                padding: const EdgeInsets.all(12),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      album.name,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                        letterSpacing: 0.3,
-                                        shadows: [
-                                          Shadow(
-                                            blurRadius: 12,
-                                            color: Colors.black,
-                                            offset: Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 3,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: ThemeColorsUtil.primaryColor
-                                            .withOpacity(0.25),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: ThemeColorsUtil.primaryColor
-                                              .withOpacity(0.4),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        '${album.trackCount} ${album.trackCount == 1 ? 'track' : 'tracks'}',
-                                        style: TextStyle(
-                                          color: ThemeColorsUtil.primaryColor
-                                              .withOpacity(0.9),
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 90),
+              // Bottom spacing
+              const SliverToBoxAdapter(child: SizedBox(height: 90)),
             ],
           );
   }
@@ -273,10 +351,11 @@ class _AlbumDetailPage extends StatelessWidget {
                     scale: 1.2,
                     child: ImageFiltered(
                       imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-                      child: Image.memory(
-                        album.coverSong!.albumArt!,
+                      child: CachedAlbumArt(
+                        bytes: album.coverSong!.albumArt!,
                         fit: BoxFit.cover,
-                        opacity: const AlwaysStoppedAnimation(0.4),
+                        width: MediaQuery.of(context).size.width,
+                        height: MediaQuery.of(context).size.height,
                       ),
                     ),
                   ),
@@ -329,43 +408,33 @@ class _AlbumDetailPage extends StatelessWidget {
                     child: Column(
                       children: [
                         // Album artwork with shadow
-                        Container(
-                          width: 200,
-                          height: 200,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: ThemeColorsUtil.primaryColor.withOpacity(
-                                  0.5,
-                                ),
-                                blurRadius: 40,
-                                spreadRadius: -10,
-                                offset: const Offset(0, 20),
-                              ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: album.coverSong?.albumArt != null
-                                ? Image.memory(
-                                    album.coverSong!.albumArt!,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: ThemeColorsUtil.albumGradient,
-                                      ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.album,
-                                      size: 80,
-                                      color: Colors.white70,
-                                    ),
+                        Hero(
+                          tag: 'album-art-${album.name}',
+                          child: Container(
+                            width: 200,
+                            height: 200,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: ThemeColorsUtil.primaryColor.withOpacity(
+                                    0.5,
                                   ),
+                                  blurRadius: 40,
+                                  spreadRadius: -10,
+                                  offset: const Offset(0, 20),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: CachedAlbumArtOrPlaceholder(
+                                bytes: album.coverSong?.albumArt,
+                                width: 200,
+                                height: 200,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -450,26 +519,12 @@ class _AlbumDetailPage extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            child: song.albumArt != null
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.memory(
-                                      song.albumArt!,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  )
-                                : Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(8),
-                                      gradient: LinearGradient(
-                                        colors: ThemeColorsUtil.albumGradient,
-                                      ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.music_note,
-                                      color: Colors.white70,
-                                    ),
-                                  ),
+                            child: CachedAlbumArtOrPlaceholder(
+                              bytes: song.albumArt,
+                              width: 52,
+                              height: 52,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                           title: Row(
                             children: [

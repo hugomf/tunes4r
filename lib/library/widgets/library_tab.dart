@@ -7,18 +7,23 @@ import 'package:tunes4r/services/playback_manager.dart';
 import 'package:tunes4r/utils/theme_colors.dart';
 import 'package:tunes4r/library/library.dart';
 import 'package:tunes4r/library/library_commands.dart';
+import 'package:fuzzy/fuzzy.dart'; // Fuzzy search library
+import 'package:tunes4r/widgets/staggered_list_view.dart';
+import 'package:tunes4r/widgets/cached_memory_image.dart';
 
 class LibraryTab extends StatefulWidget {
   final Library libraryContext;
   final PlaybackManager audioPlayer;
   final Function(Set<Song>)
   onSongsSelected; // Callback when songs are selected for playlist
+  final Future<void> Function()? onRefresh; // Pull-to-refresh callback
 
   const LibraryTab({
     super.key,
     required this.libraryContext,
     required this.audioPlayer,
     required this.onSongsSelected,
+    this.onRefresh,
   });
 
   // UI layer owns its actions completely - returns fully styled widgets
@@ -52,6 +57,17 @@ class _LibraryTabState extends State<LibraryTab> {
   Set<Song> _selectedSongs = {};
   List<Song> _library = [];
   List<Song> _favorites = [];
+  String _searchQuery = '';
+  List<Song> _filteredSongs = [];
+  late Fuzzy<Song> _fuzzySearch;
+
+  // Lazy loading state
+  static const int _chunkSize = 50;
+  int _currentChunk = 0;
+  List<Song> _visibleSongs = [];
+  bool _hasMoreSongs = true;
+  bool _isLoadingMore = false;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -63,6 +79,10 @@ class _LibraryTabState extends State<LibraryTab> {
     _favorites = initialState.favorites;
     _isSelectionMode = initialState.isSelectingMode;
     _selectedSongs = initialState.selectedSongs;
+    _filteredSongs = _library;
+
+    // Initialize fuzzy search
+    _setupFuzzySearch();
 
     // Subscribe to reactive state updates
     _stateSubscription = widget.libraryContext.state.listen((state) {
@@ -72,9 +92,18 @@ class _LibraryTabState extends State<LibraryTab> {
           _favorites = state.favorites;
           _isSelectionMode = state.isSelectingMode;
           _selectedSongs = state.selectedSongs;
+          _setupFuzzySearch(); // Reinitialize fuzzy search with new library
+          _resetLazyLoading(); // Reset when library changes
+          _updateFilteredSongs();
         });
       }
     });
+
+    // Setup infinite scroll
+    _scrollController.addListener(_onScroll);
+
+    // Load initial chunk
+    _loadInitialChunk();
 
     // Subscribe to events for user feedback
     _eventSubscription = widget.libraryContext.events.listen((event) {
@@ -105,7 +134,110 @@ class _LibraryTabState extends State<LibraryTab> {
   void dispose() {
     _stateSubscription.cancel();
     _eventSubscription.cancel();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  // ============================================================================
+  // LAZY LOADING METHODS
+  // ============================================================================
+
+  void _loadInitialChunk() {
+    if (_library.isEmpty) return;
+
+    setState(() {
+      _currentChunk = 1;
+      _visibleSongs = _library.take(_chunkSize).toList();
+      _hasMoreSongs = _library.length > _chunkSize;
+    });
+  }
+
+  void _resetLazyLoading() {
+    setState(() {
+      _currentChunk = 0;
+      _visibleSongs = [];
+      _hasMoreSongs = true;
+      _isLoadingMore = false;
+    });
+    _loadInitialChunk();
+  }
+
+  void _loadMoreSongs() async {
+    if (!_hasMoreSongs || _isLoadingMore) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    // Simulate loading delay for better UX (in a real app, this might be actual loading)
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted) return;
+
+    final startIndex = _currentChunk * _chunkSize;
+    final endIndex = startIndex + _chunkSize;
+
+    final newSongs = _library.sublist(
+      startIndex,
+      endIndex.clamp(0, _library.length),
+    );
+
+    setState(() {
+      _visibleSongs.addAll(newSongs);
+      _currentChunk++;
+      _hasMoreSongs = endIndex < _library.length;
+      _isLoadingMore = false;
+    });
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      // Load more when user is 200 pixels from bottom
+      _loadMoreSongs();
+    }
+  }
+
+  void _setupFuzzySearch() {
+    _fuzzySearch = Fuzzy<Song>(
+      _library,
+      options: FuzzyOptions<Song>(
+        keys: [
+          WeightedKey<Song>(
+            name: 'title',
+            getter: (song) => song.title,
+            weight: 0.6,
+          ),
+          WeightedKey<Song>(
+            name: 'artist',
+            getter: (song) => song.artist,
+            weight: 0.3,
+          ),
+          WeightedKey<Song>(
+            name: 'album',
+            getter: (song) => song.album,
+            weight: 0.1,
+          ),
+        ],
+        tokenize: true,
+      ),
+    );
+  }
+
+  void _updateFilteredSongs() {
+    if (_searchQuery.isEmpty) {
+      _filteredSongs = _library;
+    } else {
+      final results = _fuzzySearch.search(_searchQuery);
+      _filteredSongs = results.map((result) => result.item).toList();
+    }
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() {
+      _searchQuery = query;
+      _updateFilteredSongs();
+    });
   }
 
   void _showSnackbar(String message, {bool isError = false}) {
@@ -190,251 +322,345 @@ class _LibraryTabState extends State<LibraryTab> {
       );
     }
 
-    return _library.isEmpty
-        ? Center(
-            child: Text(
-              '📁 Add some music to get started!\nClick "Add Music" above.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: ThemeColorsUtil.textColorSecondary,
-                fontSize: 16,
+    return Column(
+      children: [
+        // Search Field
+        if (_library.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: ThemeColorsUtil.appBarBackgroundColor,
+            child: TextField(
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
+                hintText: 'Search songs, artists, or albums...',
+                hintStyle: TextStyle(color: ThemeColorsUtil.textColorSecondary),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: ThemeColorsUtil.primaryColor,
+                ),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(
+                          Icons.clear,
+                          color: ThemeColorsUtil.textColorSecondary,
+                        ),
+                        onPressed: () => _onSearchChanged(''),
+                      )
+                    : null,
+                filled: true,
+                fillColor: ThemeColorsUtil.surfaceColor,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: ThemeColorsUtil.primaryColor,
+                    width: 2,
+                  ),
+                ),
+              ),
+              style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+            ),
+          ),
+          // Search results info
+          if (_searchQuery.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: ThemeColorsUtil.surfaceColor.withOpacity(0.5),
+              child: Text(
+                'Showing ${_filteredSongs.length} of ${_library.length} songs',
+                style: TextStyle(
+                  color: ThemeColorsUtil.textColorSecondary,
+                  fontSize: 14,
+                ),
               ),
             ),
-          )
-        : ListView.builder(
-            itemCount: _library.length,
-            itemBuilder: (context, index) {
-              final song = _library[index];
-              final bool isCurrent =
-                  widget.audioPlayer.currentSong != null &&
-                  song.path == widget.audioPlayer.currentSong!.path;
-              return GestureDetector(
-                onDoubleTap: () =>
-                    _playSong(song), // Double tap to play immediately
-                child: Container(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isCurrent
-                        ? ThemeColorsUtil.primaryColor.withOpacity(0.1)
-                        : ThemeColorsUtil.scaffoldBackgroundColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.only(
-                      left: 16,
-                      right: 8,
-                      top: 8,
-                      bottom: 8,
+          ],
+        ],
+
+        // Main Content
+        Expanded(
+          child: _filteredSongs.isEmpty && _searchQuery.isNotEmpty
+              ? Center(
+                  child: Text(
+                    '🔍 No songs found\nTry a different search term',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: ThemeColorsUtil.textColorSecondary,
+                      fontSize: 16,
                     ),
-                    onLongPress: () => _startSelection(song),
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: isCurrent
-                            ? ThemeColorsUtil.primaryColor.withOpacity(0.2)
-                            : ThemeColorsUtil.surfaceColor,
-                        borderRadius: BorderRadius.circular(8),
-                        border: isCurrent
-                            ? Border.all(
-                                color: ThemeColorsUtil.primaryColor,
-                                width: 2,
-                              )
-                            : null,
+                  ),
+                )
+              : _library.isEmpty
+                  ? Center(
+                      child: Text(
+                        '📁 Add some music to get started!\nClick "Add Music" above.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: ThemeColorsUtil.textColorSecondary,
+                          fontSize: 16,
+                        ),
                       ),
-                      child: song.albumArt != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(6),
-                              child: Stack(
+                    )
+                  : RefreshIndicator(
+                      onRefresh: () => widget.libraryContext.refreshLibrary(),
+                      child: StaggeredListView(
+                        itemCount: _searchQuery.isNotEmpty ? _filteredSongs.length : _visibleSongs.length + (_hasMoreSongs ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          // Show loading indicator at the end when loading more
+                          if (_searchQuery.isEmpty && index == _visibleSongs.length) {
+                            return Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      ThemeColorsUtil.primaryColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+
+                          final song = _searchQuery.isNotEmpty ? _filteredSongs[index] : _visibleSongs[index];
+                final bool isCurrent =
+                    widget.audioPlayer.currentSong != null &&
+                    song.path == widget.audioPlayer.currentSong!.path;
+                final songWidget = GestureDetector(
+                  onDoubleTap: () =>
+                      _playSong(song), // Double tap to play immediately
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isCurrent
+                          ? ThemeColorsUtil.primaryColor.withOpacity(0.1)
+                          : ThemeColorsUtil.scaffoldBackgroundColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.only(
+                        left: 16,
+                        right: 8,
+                        top: 8,
+                        bottom: 8,
+                      ),
+                      onLongPress: () => _startSelection(song),
+                      leading: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: isCurrent
+                              ? ThemeColorsUtil.primaryColor.withOpacity(0.2)
+                              : ThemeColorsUtil.surfaceColor,
+                          borderRadius: BorderRadius.circular(8),
+                          border: isCurrent
+                              ? Border.all(
+                                  color: ThemeColorsUtil.primaryColor,
+                                  width: 2,
+                                )
+                              : null,
+                        ),
+                        child: song.albumArt != null
+                            ? Stack(
                                 children: [
-                                  Image.memory(
-                                    song.albumArt!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Icon(
-                                        Icons.music_note,
-                                        size: 20,
-                                        color: isCurrent
-                                            ? ThemeColorsUtil.surfaceColor
-                                            : ThemeColorsUtil.primaryColor,
-                                      );
-                                    },
+                                  CachedAlbumArt(
+                                    bytes: song.albumArt!,
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
                                   if (isCurrent)
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        color: ThemeColorsUtil.primaryColor
-                                            .withOpacity(0.7),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Icon(
-                                        Icons.volume_up,
-                                        color: ThemeColorsUtil.surfaceColor,
-                                        size: 20,
+                                    Positioned.fill(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: ThemeColorsUtil.primaryColor
+                                              .withOpacity(0.7),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Icon(
+                                          Icons.volume_up,
+                                          color: ThemeColorsUtil.surfaceColor,
+                                          size: 20,
+                                        ),
                                       ),
                                     ),
                                 ],
+                              )
+                            : Icon(
+                                Icons.music_note,
+                                size: 20,
+                                color: isCurrent
+                                    ? ThemeColorsUtil.surfaceColor
+                                    : ThemeColorsUtil.primaryColor,
                               ),
-                            )
-                          : Icon(
-                              Icons.music_note,
-                              size: 20,
-                              color: isCurrent
-                                  ? ThemeColorsUtil.surfaceColor
-                                  : ThemeColorsUtil.primaryColor,
-                            ),
-                    ),
-                    title: Text(
-                      song.title,
-                      style: TextStyle(
-                        color: isCurrent
-                            ? ThemeColorsUtil.primaryColor
-                            : ThemeColorsUtil.textColorPrimary,
-                        fontSize: isMobile ? 14 : 16,
-                        fontWeight: isCurrent
-                            ? FontWeight.bold
-                            : FontWeight.normal,
                       ),
-                    ),
-                    subtitle: Text(
-                      song.artist,
-                      style: TextStyle(
-                        color: isCurrent
-                            ? ThemeColorsUtil.primaryColor.withOpacity(0.8)
-                            : ThemeColorsUtil.textColorSecondary,
-                        fontSize: isMobile ? 12 : 14,
+                      title: Text(
+                        song.title,
+                        style: TextStyle(
+                          color: isCurrent
+                              ? ThemeColorsUtil.primaryColor
+                              : ThemeColorsUtil.textColorPrimary,
+                          fontSize: isMobile ? 14 : 16,
+                          fontWeight: isCurrent
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
                       ),
-                    ),
-                    trailing: SizedBox(
-                      width:
-                          160, // Increased width to accommodate volume icon + proper spacing
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          if (isCurrent) ...[
-                            Icon(
-                              Icons.volume_up,
-                              color: ThemeColorsUtil.primaryColor,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                          ],
-                          SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: Icon(
-                                _favorites.contains(song)
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: _favorites.contains(song)
-                                    ? ThemeColorsUtil.error
-                                    : ThemeColorsUtil.textColorSecondary,
-                                size: 18,
-                              ),
-                              onPressed: () => _toggleFavorite(song),
-                              tooltip: 'Toggle Favorite',
-                            ),
-                          ),
-                          SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: Icon(
-                                Icons.play_arrow,
-                                color: ThemeColorsUtil.secondary,
-                                size: 18,
-                              ),
-                              onPressed: () => _playSong(song),
-                              tooltip: 'Play Song',
-                            ),
-                          ),
-                          SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: Icon(
-                                Icons.skip_next,
+                      subtitle: Text(
+                        song.artist,
+                        style: TextStyle(
+                          color: isCurrent
+                              ? ThemeColorsUtil.primaryColor.withOpacity(0.8)
+                              : ThemeColorsUtil.textColorSecondary,
+                          fontSize: isMobile ? 12 : 14,
+                        ),
+                      ),
+                      trailing: SizedBox(
+                        width:
+                            160, // Increased width to accommodate volume icon + proper spacing
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (isCurrent) ...[
+                              Icon(
+                                Icons.volume_up,
                                 color: ThemeColorsUtil.primaryColor,
-                                size: 18,
+                                size: 20,
                               ),
-                              onPressed: () => _addToPlayNext(song),
-                              tooltip: 'Play Next',
+                              const SizedBox(width: 8),
+                            ],
+                            SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: Icon(
+                                  _favorites.contains(song)
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: _favorites.contains(song)
+                                      ? ThemeColorsUtil.error
+                                      : ThemeColorsUtil.textColorSecondary,
+                                  size: 18,
+                                ),
+                                onPressed: () => _toggleFavorite(song),
+                                tooltip: 'Toggle Favorite',
+                              ),
                             ),
-                          ),
-                          SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: PopupMenuButton<String>(
-                              padding: EdgeInsets.zero,
-                              icon: Icon(
-                                Icons.more_vert,
-                                color: ThemeColorsUtil.textColorSecondary,
-                                size: 18,
+                            SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: Icon(
+                                  Icons.play_arrow,
+                                  color: ThemeColorsUtil.secondary,
+                                  size: 18,
+                                ),
+                                onPressed: () => _playSong(song),
+                                tooltip: 'Play Song',
                               ),
-                              tooltip: 'More Options',
-                              onSelected: (String value) {
-                                switch (value) {
-                                  case 'queue':
-                                    _addToQueue(song);
-                                    break;
-                                  case 'remove':
-                                    _showRemoveDialog(song);
-                                    break;
-                                }
-                              },
-                              itemBuilder: (BuildContext context) =>
-                                  <PopupMenuEntry<String>>[
-                                    PopupMenuItem<String>(
-                                      value: 'queue',
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.queue_music, size: 16),
-                                          const SizedBox(width: 6),
-                                          Text('Add to Queue'),
-                                        ],
+                            ),
+                            SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: Icon(
+                                  Icons.skip_next,
+                                  color: ThemeColorsUtil.primaryColor,
+                                  size: 18,
+                                ),
+                                onPressed: () => _addToPlayNext(song),
+                                tooltip: 'Play Next',
+                              ),
+                            ),
+                            SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: PopupMenuButton<String>(
+                                padding: EdgeInsets.zero,
+                                icon: Icon(
+                                  Icons.more_vert,
+                                  color: ThemeColorsUtil.textColorSecondary,
+                                  size: 18,
+                                ),
+                                tooltip: 'More Options',
+                                onSelected: (String value) {
+                                  switch (value) {
+                                    case 'queue':
+                                      _addToQueue(song);
+                                      break;
+                                    case 'remove':
+                                      _showRemoveDialog(song);
+                                      break;
+                                  }
+                                },
+                                itemBuilder: (BuildContext context) =>
+                                    <PopupMenuEntry<String>>[
+                                      PopupMenuItem<String>(
+                                        value: 'queue',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.queue_music, size: 16),
+                                            const SizedBox(width: 6),
+                                            Text('Add to Queue'),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    PopupMenuItem<String>(
-                                      value: 'remove',
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.delete,
-                                            size: 16,
-                                            color: ThemeColorsUtil.error,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            'Remove from Library',
-                                            style: TextStyle(
+                                      PopupMenuItem<String>(
+                                        value: 'remove',
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.delete,
+                                              size: 16,
                                               color: ThemeColorsUtil.error,
                                             ),
-                                          ),
-                                        ],
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              'Remove from Library',
+                                              style: TextStyle(
+                                                color: ThemeColorsUtil.error,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
-          );
+                );
+
+                return songWidget;
+              },
+                        ),
+                    ),
+        ),
+      ],
+    );
   }
 
   // Selection mode methods (now delegated to bounded context)
@@ -782,26 +1008,12 @@ class _LibraryTabState extends State<LibraryTab> {
                 color: ThemeColorsUtil.surfaceColor,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: song.albumArt != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: Image.memory(
-                        song.albumArt!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Icon(
-                            Icons.music_note,
-                            size: 20,
-                            color: ThemeColorsUtil.primaryColor,
-                          );
-                        },
-                      ),
-                    )
-                  : Icon(
-                      Icons.music_note,
-                      size: 20,
-                      color: ThemeColorsUtil.primaryColor,
-                    ),
+              child: CachedAlbumArtOrPlaceholder(
+                bytes: song.albumArt,
+                width: 40,
+                height: 40,
+                borderRadius: BorderRadius.circular(6),
+              ),
             ),
             Checkbox(
               value: isSelected,

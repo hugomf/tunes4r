@@ -17,12 +17,14 @@ import 'library_state.dart';
 import 'logger.dart';
 import 'services/media_scan_service.dart';
 import 'services/metadata_extraction_service.dart';
+import 'repositories/repository_provider.dart';
 
 /// Main bounded context class for library management
 /// Encapsulates all library-related functionality in a single component
 class Library {
   // Core dependencies
   final DatabaseService _databaseService;
+  late final RepositoryProvider _repositoryProvider;
 
   // Domain services
   late final MediaScanService _mediaScanService;
@@ -35,7 +37,9 @@ class Library {
   final StreamController<LibraryEvent> _eventController =
       StreamController<LibraryEvent>.broadcast();
 
-  Library._(this._databaseService);
+  Library._(this._databaseService) {
+    _repositoryProvider = RepositoryProvider(_databaseService);
+  }
 
   /// Factory constructor with database service
   factory Library(DatabaseService databaseService) {
@@ -58,9 +62,9 @@ class Library {
     await _executeCommand(InitializeLibraryCommand());
 
     try {
-      // Load library and favorites from database
-      final library = await _databaseService.loadAllSongs();
-      final favorites = await _databaseService.loadFavorites();
+      // Load library and favorites from repositories
+      final library = await _repositoryProvider.songRepository.getAllSongs();
+      final favorites = await _repositoryProvider.songRepository.getFavoriteSongs();
 
       _state = LibraryActions.libraryInitialized(_state, library, favorites);
 
@@ -101,6 +105,28 @@ class Library {
   bool get hasSelection => _state.hasSelection;
   LibraryStatistics get statistics => _state.statistics;
 
+  /// Refresh the library data from repositories (refresh cache and data)
+  Future<void> refreshLibrary() async {
+    try {
+      // Refresh data through repositories
+      await _repositoryProvider.songRepository.refreshData();
+
+      // Reload data and update state
+      await _executeCommand(InitializeLibraryCommand());
+      final library = await _repositoryProvider.songRepository.getAllSongs();
+      final favorites = await _repositoryProvider.songRepository.getFavoriteSongs();
+
+      _state = LibraryActions.libraryInitialized(_state, library, favorites);
+      _stateController.add(_state);
+
+      LibraryLogger.libraryOperation('refreshed successfully');
+    } catch (e) {
+      LibraryLogger.warning('Failed to refresh library: $e', error: e);
+      _emitEvent(LibraryErrorEvent('Failed to refresh library', e.toString()));
+      rethrow;
+    }
+  }
+
   /// Get all albums from the library, grouped by album name and sorted alphabetically
   List<Album> getAlbums() {
     final albumMap = <String, List<Song>>{};
@@ -128,10 +154,13 @@ class Library {
     try {
       LibraryLogger.songOperation('saving', song.title);
 
-      await _databaseService.saveSong(song);
-      _state = LibraryActions.saveSong(_state, SaveSongCommand(song));
+      // Use repository for data persistence
+      await _repositoryProvider.songRepository.saveSong(song);
 
+      // Update local state
+      _state = LibraryActions.saveSong(_state, SaveSongCommand(song));
       _stateController.add(_state);
+
       if (emitEvent) {
         _emitEvent(
           SongSavedEvent(song),
@@ -156,12 +185,14 @@ class Library {
     try {
       LibraryLogger.songOperation('removing', song.title);
 
-      await _databaseService.deleteSong(song.path);
+      // Use repository for data deletion
+      await _repositoryProvider.songRepository.deleteSong(song.path);
+
+      // Update local state
       _state = LibraryActions.removeSong(_state, RemoveSongCommand(song));
-
       _stateController.add(_state);
-      _emitEvent(SongRemovedEvent(song));
 
+      _emitEvent(SongRemovedEvent(song));
       LibraryLogger.songOperation('removed successfully', song.title);
     } catch (e) {
       LibraryLogger.warning(
@@ -183,12 +214,14 @@ class Library {
     try {
       LibraryLogger.libraryOperation('clearing all songs');
 
-      await _databaseService.clearLibrary();
+      // Use repository for complete data clearing
+      await _repositoryProvider.songRepository.clearAllSongs();
+
+      // Update local state
       _state = LibraryActions.clearLibrary(_state, ClearLibraryCommand());
-
       _stateController.add(_state);
-      _emitEvent(LibraryClearedEvent());
 
+      _emitEvent(LibraryClearedEvent());
       LibraryLogger.libraryOperation('cleared successfully');
     } catch (e) {
       LibraryLogger.warning('Failed to clear library: $e', error: e);
@@ -208,8 +241,10 @@ class Library {
       LibraryLogger.songOperation(action, song.title);
 
       final newFavoriteStatus = !isCurrentlyFavorite;
-      await _databaseService.updateFavorite(song.path, newFavoriteStatus);
+      // Use repository for favorite status updates
+      await _repositoryProvider.songRepository.updateFavoriteStatus(song.path, newFavoriteStatus);
 
+      // Update local state
       _state = LibraryActions.toggleFavorite(
         _state,
         ToggleFavoriteCommand(song),

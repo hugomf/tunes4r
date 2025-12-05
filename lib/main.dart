@@ -2,7 +2,10 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tunes4r/core/di/service_locator.dart';
 // ✅ Clean bounded context imports - external interfaces only
 import 'package:tunes4r/audio_player/audio_player.dart';
 import 'package:tunes4r/audio_player/widgets/music_player_controls.dart';
@@ -42,10 +45,17 @@ import 'package:tunes4r/utils/theme_colors.dart';
 
 enum SearchMode { songs, albums }
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(const MusicPlayerApp());
+  // ✅ PHASE 1: Initialize dependency injection container
+  await setupServiceLocator();
+
+  runApp(
+    const ProviderScope(
+      child: MusicPlayerApp(),
+    ),
+  );
 }
 
 // Global shared theme manager for hot reload compatibility
@@ -389,7 +399,45 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
           backgroundColor: ThemeColorsUtil.surfaceColor,
         ),
       );
-      return;
+    }
+  }
+
+  // ============================================================================
+  // KEYBOARD SHORTCUT HANDLERS
+  // ============================================================================
+
+  void _switchToTab(int tabIndex) {
+    if (tabIndex >= 0 && tabIndex <= 6) {
+      setState(() => _selectedIndex = tabIndex);
+      // Provide feedback for tab switching
+      _showKeyboardShortcutFeedback('Switched to ${['Library', 'Playlists', 'Now Playing', 'Albums', 'Favorites', 'Download', 'Settings'][tabIndex]}');
+    }
+  }
+
+  void _playCurrentOrSelected() {
+    // Try to play from current context
+    _togglePlayPause();
+  }
+
+  void _handleEscape() {
+    // For now, just close drawer if open
+    if (Scaffold.of(context).isDrawerOpen) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  void _showKeyboardShortcutFeedback(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style: TextStyle(color: ThemeColorsUtil.textColorPrimary),
+          ),
+          backgroundColor: ThemeColorsUtil.surfaceColor,
+          duration: const Duration(milliseconds: 800),
+        ),
+      );
     }
   }
 
@@ -468,186 +516,219 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
     return const Center(child: CircularProgressIndicator());
   }
 
+
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 600;
 
-    return Scaffold(
-      backgroundColor: ThemeColorsUtil.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: ThemeColorsUtil.appBarBackgroundColor,
-        elevation: 0,
-        title: Text(
-          _getContextTitle(_selectedIndex),
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: ThemeColorsUtil.textColorPrimary,
-          ),
-        ),
-        actions: _getContextActions(context, _selectedIndex),
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: Icon(Icons.menu, color: ThemeColorsUtil.textColorPrimary),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-      ),
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        // Space - Play/Pause
+        const SingleActivator(LogicalKeyboardKey.space): _togglePlayPause,
 
-      // BEAUTIFUL BLURRED TRANSPARENT DRAWER
-      drawer: SizedBox(
-        width: isMobile
-            ? 280.0
-            : 300.0, // Slightly wider looks better with blur
-        child: Drawer(
-          backgroundColor: Colors.transparent, // Important!
-          elevation: 0,
-          child: ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topRight: Radius.circular(20),
-              bottomRight: Radius.circular(20),
+        // Left Arrow - Previous track
+        const SingleActivator(LogicalKeyboardKey.arrowLeft): _playPrevious,
+
+        // Right Arrow - Next track
+        const SingleActivator(LogicalKeyboardKey.arrowRight): _playNext,
+
+        // Number keys 1-7 for tab switching
+        const SingleActivator(LogicalKeyboardKey.digit1): () => _switchToTab(0),
+        const SingleActivator(LogicalKeyboardKey.digit2): () => _switchToTab(1),
+        const SingleActivator(LogicalKeyboardKey.digit3): () => _switchToTab(2),
+        const SingleActivator(LogicalKeyboardKey.digit4): () => _switchToTab(3),
+        const SingleActivator(LogicalKeyboardKey.digit5): () => _switchToTab(4),
+        const SingleActivator(LogicalKeyboardKey.digit6): () => _switchToTab(5),
+        const SingleActivator(LogicalKeyboardKey.digit7): () => _switchToTab(6),
+
+        // Enter - Play current selection or track
+        const SingleActivator(LogicalKeyboardKey.enter): _playCurrentOrSelected,
+
+        // Escape - Deselect all if in selection mode
+        const SingleActivator(LogicalKeyboardKey.escape): _handleEscape,
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          backgroundColor: ThemeColorsUtil.scaffoldBackgroundColor,
+          appBar: AppBar(
+            backgroundColor: ThemeColorsUtil.appBarBackgroundColor,
+            elevation: 0,
+            title: Text(
+              _getContextTitle(_selectedIndex),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: ThemeColorsUtil.textColorPrimary,
+              ),
             ),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(
-                sigmaX: 12,
-                sigmaY: 12,
-              ), // Blur intensity
-              child: Container(
-                decoration: BoxDecoration(
-                  color: ThemeColorsUtil.scaffoldBackgroundColor.withOpacity(
-                    0.4,
-                  ), // Semi-transparent
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                  ),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.1),
-                    width: 1,
-                  ),
+            actions: _getContextActions(context, _selectedIndex),
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: Icon(Icons.menu, color: ThemeColorsUtil.textColorPrimary),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+          ),
+
+          // BEAUTIFUL BLURRED TRANSPARENT DRAWER
+          drawer: SizedBox(
+            width: isMobile
+                ? 280.0
+                : 300.0, // Slightly wider looks better with blur
+            child: Drawer(
+              backgroundColor: Colors.transparent, // Important!
+              elevation: 0,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
                 ),
-                child: SafeArea(
-                  child: Column(
-                    children: [
-                      // Header
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: ThemeColorsUtil.appBarBackgroundColor
-                              .withOpacity(0.7),
-                          borderRadius: const BorderRadius.only(
-                            topRight: Radius.circular(20),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(
+                    sigmaX: 12,
+                    sigmaY: 12,
+                  ), // Blur intensity
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: ThemeColorsUtil.scaffoldBackgroundColor.withOpacity(
+                        0.4,
+                      ), // Semi-transparent
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(20),
+                        bottomRight: Radius.circular(20),
+                      ),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.1),
+                        width: 1,
+                      ),
+                    ),
+                    child: SafeArea(
+                      child: Column(
+                        children: [
+                          // Header
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: ThemeColorsUtil.appBarBackgroundColor
+                                  .withOpacity(0.7),
+                              borderRadius: const BorderRadius.only(
+                                topRight: Radius.circular(20),
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Tunes4R',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: ThemeColorsUtil.textColorPrimary,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 10,
+                                      color: Colors.black.withOpacity(0.3),
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Tunes4R',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: ThemeColorsUtil.textColorPrimary,
-                              shadows: [
-                                Shadow(
-                                  blurRadius: 10,
-                                  color: Colors.black.withOpacity(0.3),
-                                  offset: const Offset(0, 2),
+
+                          // Menu Items
+                          Expanded(
+                            child: ListView(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              children: [
+                                _buildDrawerItem(Icons.library_music, 'Library', 0),
+                                _buildDrawerItem(
+                                  Icons.playlist_play,
+                                  'Playlist',
+                                  1,
+                                ),
+                                _buildDrawerItem(
+                                  Icons.play_circle,
+                                  'Now Playing',
+                                  2,
+                                ),
+                                _buildDrawerItem(Icons.album, 'Albums', 3),
+                                _buildDrawerItem(Icons.favorite, 'Favorites', 4),
+                                _buildDrawerItem(
+                                  Icons.cloud_download,
+                                  'Download',
+                                  5,
+                                ),
+                                _buildDrawerItem(Icons.settings, 'Settings', 6),
+                                const SizedBox(height: 20),
+                                Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Text(
+                                    'Made by Silverio / Qualitas',
+                                    style: TextStyle(
+                                      color: ThemeColorsUtil.textColorSecondary
+                                          .withOpacity(0.8),
+                                      fontSize: 12,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                        ),
+                        ],
                       ),
-
-                      // Menu Items
-                      Expanded(
-                        child: ListView(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          children: [
-                            _buildDrawerItem(Icons.library_music, 'Library', 0),
-                            _buildDrawerItem(
-                              Icons.playlist_play,
-                              'Playlist',
-                              1,
-                            ),
-                            _buildDrawerItem(
-                              Icons.play_circle,
-                              'Now Playing',
-                              2,
-                            ),
-                            _buildDrawerItem(Icons.album, 'Albums', 3),
-                            _buildDrawerItem(Icons.favorite, 'Favorites', 4),
-                            _buildDrawerItem(
-                              Icons.cloud_download,
-                              'Download',
-                              5,
-                            ),
-                            _buildDrawerItem(Icons.settings, 'Settings', 6),
-                            const SizedBox(height: 20),
-                            Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Text(
-                                'Made by Silverio / Qualitas',
-                                style: TextStyle(
-                                  color: ThemeColorsUtil.textColorSecondary
-                                      .withOpacity(0.8),
-                                  fontSize: 12,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
 
-      body: Column(
-        children: [
-          Expanded(
-            child: _selectedIndex == 0
-                ? LibraryTab(
-                    key: _libraryTabKey,
-                    libraryContext: _libraryContext,
-                    audioPlayer: _audioPlayer,
-                    onSongsSelected: _addSelectedSongsToPlaylist,
-                  )
-                : _selectedIndex == 1
-                ? _buildPlaylist()
-                : _selectedIndex == 2
-                ? NowPlayingTab(
-                    playbackManager: _audioPlayer,
-                    onTogglePlayPause: _togglePlayPause,
-                    onPlayNext: _playNext,
-                    onPlayPrevious: _playPrevious,
-                  )
-                : _selectedIndex == 3
-                ? _libraryContext.getAlbumsTab(_audioPlayer)
-                : _selectedIndex == 4
-                ? _libraryContext.getFavoritesTab(_audioPlayer)
-                : _selectedIndex == 5
-                ? DownloadTab()
-                : _selectedIndex == 6
-                ? _settingsContext.getSettingsTab()
-                : const Placeholder(),
+          body: Column(
+            children: [
+              Expanded(
+                child: _selectedIndex == 0
+                    ? LibraryTab(
+                        key: _libraryTabKey,
+                        libraryContext: _libraryContext,
+                        audioPlayer: _audioPlayer,
+                        onSongsSelected: _addSelectedSongsToPlaylist,
+                        onRefresh: () => _libraryContext.refreshLibrary(),
+                      )
+                    : _selectedIndex == 1
+                    ? _buildPlaylist()
+                    : _selectedIndex == 2
+                    ? NowPlayingTab(
+                        playbackManager: _audioPlayer,
+                        onTogglePlayPause: _togglePlayPause,
+                        onPlayNext: _playNext,
+                        onPlayPrevious: _playPrevious,
+                      )
+                    : _selectedIndex == 3
+                    ? _libraryContext.getAlbumsTab(_audioPlayer)
+                    : _selectedIndex == 4
+                    ? _libraryContext.getFavoritesTab(_audioPlayer)
+                    : _selectedIndex == 5
+                    ? DownloadTab()
+                    : _selectedIndex == 6
+                    ? _settingsContext.getSettingsTab()
+                    : const Placeholder(),
+              ),
+              MusicPlayerControls(
+                playbackManager: _audioPlayer,
+                onSavePreferences: _savePreferences,
+                onTogglePlayPause: _togglePlayPause,
+              ),
+            ],
           ),
-          MusicPlayerControls(
-            playbackManager: _audioPlayer,
-            onSavePreferences: _savePreferences,
-            onTogglePlayPause: _togglePlayPause,
-          ),
-        ],
+        ),
       ),
     );
   }
+
 
   Widget _buildDrawerItem(IconData icon, String label, int index) {
     final bool isSelected = _selectedIndex == index;
