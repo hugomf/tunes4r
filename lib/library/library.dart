@@ -18,8 +18,6 @@ import 'logger.dart';
 import 'services/media_scan_service.dart';
 import 'services/metadata_extraction_service.dart';
 import 'repositories/repository_provider.dart';
-import 'use_cases.dart';
-import 'error_handling.dart';
 
 /// Main bounded context class for library management
 /// Encapsulates all library-related functionality in a single component
@@ -31,13 +29,6 @@ class Library {
   // Domain services
   late final MediaScanService _mediaScanService;
   late final MetadataExtractionService _metadataExtractionService;
-
-  // Use cases (Application layer)
-  late final UseCasesProvider _useCasesProvider;
-
-  // Import operation cancellation
-  bool _isOperationInProgress = false;
-  Completer<bool>? _operationCancellationToken;
 
   // State management
   LibraryState _state = LibraryState.initial();
@@ -64,19 +55,9 @@ class Library {
 
     LibraryLogger.info('Initializing library bounded context');
 
-    // Initialize global error handler
-    LibraryExceptionHandler.instance;
-
     // Initialize domain services
     _mediaScanService = MediaScanService();
     _metadataExtractionService = MetadataExtractionService();
-
-    // Initialize use cases (Application layer)
-    _useCasesProvider = UseCasesProvider.create(
-      repositoryProvider: _repositoryProvider,
-      mediaScanService: _mediaScanService,
-      metadataExtractionService: _metadataExtractionService,
-    );
 
     await _executeCommand(InitializeLibraryCommand());
 
@@ -426,50 +407,14 @@ class Library {
   /// Get library statistics (already available as getter)
   /// Future enhancement: could compute advanced analytics
 
-  /// Import music files given their paths - NOW USING USE CASES!
-  /// Returns the stream of progress updates for UI feedback
-  Stream<UseCaseProgress<int>> importMusicFilesWithProgress(List<String> filePaths) {
-    LibraryLogger.info('Starting import with progress tracking for ${filePaths.length} files');
-
-    final input = ImportSongsInput.multipleFiles(filePaths);
-    return _useCasesProvider.importFilesWithProgress(filePaths);
-  }
-
-  /// Cancel any currently running import operation
-  Future<bool> cancelImportOperation() async {
-    LibraryLogger.info('Attempting to cancel import operation');
-    _isOperationInProgress = false;
-
-    // Cancel the use case operation
-    final cancelled = await _useCasesProvider.importSongsUseCase.cancel();
-
-    if (cancelled) {
-      LibraryLogger.info('Import operation cancelled successfully');
-    } else {
-      LibraryLogger.warning('Failed to cancel import operation');
-    }
-
-    return cancelled;
-  }
-
-  /// Check if an import operation is currently in progress
-  bool get isImportInProgress => _isOperationInProgress;
-
-  /// Import music files given their paths (legacy method - prefer importMusicFilesWithProgress)
+  /// Import music files given their paths
   /// This is pure domain logic - UI layer handles path selection
   Future<int> importMusicFiles(List<String> filePaths) async {
-    LibraryLogger.info('Importing ${filePaths.length} music files (legacy method)');
+    LibraryLogger.info('Importing ${filePaths.length} music files');
 
     if (filePaths.isEmpty) return 0;
 
-    final input = ImportSongsInput.multipleFiles(filePaths);
-    return await _useCasesProvider.importSongsUseCase.execute(input);
-  }
-
-  /// Convenience method to import a single file
-  Future<int> importSingleFile(String filePath) async {
-    final input = ImportSongsInput.singleFile(filePath);
-    return await _useCasesProvider.importSongsUseCase.execute(input);
+    return await _processAndImportAudioFiles(filePaths);
   }
 
   /// Scan directory for audio files
